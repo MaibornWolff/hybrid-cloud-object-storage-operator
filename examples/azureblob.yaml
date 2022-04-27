@@ -1,0 +1,13 @@
+apiVersion: hybridcloud.maibornwolff.de/v1alpha1
+kind: ObjectStorageBucket
+metadata:
+  name: demoteam
+  namespace: default
+spec:
+  interface: azureblob
+  network:
+    publicAccess: false
+  containers:
+    - name: demo
+      anonymousAccess: false
+  credentialsSecret: demoteam-storage-credentials
