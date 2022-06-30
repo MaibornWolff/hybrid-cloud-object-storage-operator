@@ -3,6 +3,16 @@ entries:
   hybrid-cloud-object-storage-operator:
   - apiVersion: v2
     appVersion: 0.1.0
+    created: "2022-06-30T12:10:56.134785321Z"
+    description: A Helm chart for Kubernetes
+    digest: db8a6a7b856f3b1192ee419d12a2631655eedaed9324aca5e32930e4d85f4893
+    name: hybrid-cloud-object-storage-operator
+    type: application
+    urls:
+    - https://MaibornWolff.github.io/hybrid-cloud-object-storage-operator/hybrid-cloud-object-storage-operator-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: 0.1.0
     created: "2022-04-27T13:11:06.96849645Z"
     description: A Helm chart for Kubernetes
     digest: 945b1755e6a2e09aad1d9089a45118836a3a8538f10b5d2a58f9123e2a5b854b
@@ -11,4 +21,4 @@ entries:
     urls:
     - https://MaibornWolff.github.io/hybrid-cloud-object-storage-operator/hybrid-cloud-object-storage-operator-0.1.0.tgz
     version: 0.1.0
-generated: "2022-04-27T13:11:06.967289255Z"
+generated: "2022-06-30T12:10:56.134070526Z"
