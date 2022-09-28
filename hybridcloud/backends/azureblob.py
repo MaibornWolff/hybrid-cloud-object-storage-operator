@@ -95,14 +95,14 @@ class AzureBlobBackend:
             self._lock_client.management_locks.create_or_update_at_resource_level(self._resource_group, "Microsoft.Storage", "", "storageAccounts", bucket_name, "DoNotDeleteLock", parameters=ManagementLockObject(level="CanNotDelete", notes="Protection from accidental deletion"))
 
         # Create blob services
-        retention, restore, changefeed = _map_retention(spec)
+        retention, changefeed = _map_retention(spec)
         versioning = field_from_spec(spec, "dataRetention.versioning.enabled", default=_backend_config("parameters.versioning.enabled", default=False))
         parameters = BlobServiceProperties(
             cors=_map_cors_rules(spec.get("security", dict()).get("cors")),
             is_versioning_enabled=versioning,
             delete_retention_policy=retention,
             container_delete_retention_policy=retention,
-            restore_policy=restore,
+            restore_policy=None,
             change_feed=changefeed,
         )
         self._storage_client.blob_services.set_service_properties(self._resource_group, bucket_name, parameters=parameters)
@@ -202,15 +202,11 @@ def _map_retention(spec):
         enabled=enabled,
         days=days if enabled else None,
     )
-    restore = RestorePolicyProperties(
-        enabled=False,
-        days=None,
-    )
     changefeed = ChangeFeed(
         enabled=False,
         retention_in_days=None,
     )
-    return retention, restore, changefeed
+    return retention, changefeed
 
 
 
