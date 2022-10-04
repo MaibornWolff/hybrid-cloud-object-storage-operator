@@ -108,6 +108,45 @@ spec:
                         type: boolean
                     required:
                       - name
+                sftp:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                    users:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          username:
+                            type: string
+                          access:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                container:
+                                  type: string
+                                permissions:
+                                  type: array
+                                  items:
+                                    type: string
+                          sshKeys:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                description:
+                                  type: string
+                                publicKey:
+                                  type: string
+                              required:
+                                - publicKey
+                        required:
+                          - username
+                          - sshKeys
+                  required:
+                    - enabled
               required:
                 - credentialsSecret
             status:

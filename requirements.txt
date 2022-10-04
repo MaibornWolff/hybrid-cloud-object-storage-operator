@@ -2,5 +2,5 @@ kubernetes==19.15.0
 kopf==1.35.2
 azure-identity==1.7.1
 azure-mgmt-resource==20.0.0
-azure-mgmt-storage==19.0.0
+azure-mgmt-storage==19.1.0
 pyyaml==6.0

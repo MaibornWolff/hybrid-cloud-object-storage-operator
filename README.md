@@ -181,6 +181,19 @@ spec:
   containers:  # Only relevant for azure, list of containers to create in the bucket, for azure at least one is required, containers not on the list will be removed from the storage account, including their data
     - name: assets  # Name of the container, required
       anonymousAccess: false  # If set to true objects in the container can be accessed without authentication/authorization, only relevant if `security.anonymousAccess` is set to true, optional
+  sftp:  # SFTP feature can only be enabled for the first time at creation of the storage account. Background: The hierarchical namespace setting is needed for SFTP and will be used implicitly but it can be only set at creation time.
+    enabled: true  # enable SFTP interface, required
+    users:  # creating users that can access the bucket via SFTP protocol
+      - username: techuser  # username, required
+        access:  # definition which ressources can be accessed by the user. Currently only blob resources are supported.
+          - container: assets  # name of the container
+            permissions:  # list of the operations a user can do. Possible values are READ, WRITE, DELETE, LIST, CREATE 
+              - READ
+              - LIST
+        sshKeys:  # public key authentication is supported, required; publicKey is a required field too
+          - description: just a sample description
+            publicKey: |
+              ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC5iLKWmx/OFab6x76i5aRTuavBJont8s+x/Zq7BSGqwtVPEgzMQNXwMlXVm1S5vGlZUuBRVaVuWEuL7z96Tve2hEnW0410l7Unw+HvMut3aSRO9zebMhbHmlQ3yMuSSVE85CYt3IAM4LRnJCXtqsybd9wNo8vjkg7Vh9YoGvE8LwB+VCtp7gqZ8zAcZn8cekAeE97lsE6ZerWvSXbNal7ZvvJRIC/mGYGMbL62z1gAbZUlDD/TryCFBSiKEy4XwMc+Br3kCPi0fBf9jH+y0uD5pFQ5xK2CZAj87moXTu7uR3c5dmOh6ZBxBI8DdTvywhvQMGs5sujZRqjpipPc9pt+RaoyaBSB1/Dxpp/He+fJT/pezMmgNIHU6qxnRlqeq1NUFsZuK3LpKKsOjwurtn1678vrOUMTUUqGGooe5TGqm28ynqKnyDIr/yYOaBOWg5D01PbATiJNSMklOQmKNwQrX4Wa44o8C5uWDHIkspGzxy9HGzPszFqxG3eO3jwqmYNFe9DDuGo/HLeNnbr+etq54l/KVaO3kq+iDiBSDfRhUYYaHDszALnJdJjKdXaTNRwXm3NgXdvVE2C6iNJXMWUVlFfvG7weaerA12E4A5P4lt20LPo5QUy9kRY2lG3no6ECwf+HCuac80rui5c4SKNcBsyc8EaEdfJeee6JVWE61w== key for azure test user
   credentialsSecret: teamfoo-storage-credentials  # Name of a secret where the credentials for the bucket should be stored, required
 ```
 

@@ -1,16 +1,18 @@
 import string
 from azure.core.exceptions import ResourceNotFoundError
-from azure.mgmt.storage.models import StorageAccountCreateParameters, StorageAccountUpdateParameters, Sku, BlobServiceProperties, \
-    CorsRules, CorsRule, NetworkRuleSet, IPRule, VirtualNetworkRule, BlobContainer, StorageAccountCheckNameAvailabilityParameters, StorageAccountRegenerateKeyParameters, \
-    DeleteRetentionPolicy, RestorePolicyProperties, ChangeFeed
+from azure.mgmt.storage.models import StorageAccountCreateParameters, StorageAccountUpdateParameters, Sku, \
+    BlobServiceProperties, \
+    CorsRules, CorsRule, NetworkRuleSet, IPRule, VirtualNetworkRule, BlobContainer, \
+    StorageAccountCheckNameAvailabilityParameters, StorageAccountRegenerateKeyParameters, \
+    DeleteRetentionPolicy, RestorePolicyProperties, ChangeFeed, LocalUser, PermissionScope, SshPublicKey
 from azure.mgmt.resource.locks.models import ManagementLockObject
 from ..util.azure import azure_client_storage, azure_client_locks
 from ..config import config_get
 from ..util.reconcile_helpers import field_from_spec
 
-
 TAGS_PREFIX = "hybridcloud-object-storage-operator"
 HTTP_METHODS = ["DELETE", "GET", "HEAD", "MERGE", "OPTIONS", "PATCH", "POST", "PUT"]
+SFTP_USER_PERMISSIONS = ["READ", "WRITE", "DELETE", "LIST", "CREATE"]
 
 
 def _backend_config(key, default=None, fail_if_missing=False):
@@ -46,6 +48,29 @@ class AzureBlobBackend:
             result = self._storage_client.storage_accounts.check_name_availability(StorageAccountCheckNameAvailabilityParameters(name=bucket_name))
             if not result.name_available:
                 return (False, f"storage account name cannot be used: {result.reason}: {result.message}")
+
+        # Check user permissions validity
+        spec_user_permissions = self.get_user_permissions(spec)
+        for permission in spec_user_permissions:
+            if permission not in SFTP_USER_PERMISSIONS:
+                return (False, f"user permission '{permission}' is not valid")
+        # Check bucket containers and containers used by local users
+        spec_user_containers = self.get_user_container_names(spec)
+        spec_containers = self.get_container_names(spec)
+        for specUserContainer in spec_user_containers:
+            if specUserContainer not in spec_containers:
+                return (False, f"user container name '{specUserContainer}' is not defined in the general container list")
+
+        # Check if existing bucket can use enabled SFTP option
+        if self.bucket_exists(namespace, name):
+            storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
+            is_hns_enabled_in_storage_account = storage_account.is_hns_enabled
+            sftp_enabled = field_from_spec(spec, "sftp.enabled", default=_backend_config("parameters.sftp.enabled",
+                                                                                         default=False))
+            # if hierarchical namespace (HNS) not aénabled at creation, SFTP cannot be enabled
+            if sftp_enabled and not is_hns_enabled_in_storage_account:
+                return (False, f"SFTP cannot be enabled because hierarchical namespace (HNS) option is disabled. SFTP can be enabled only at creation time of the storage account")
+
         return (True, "")
 
     def bucket_exists(self, namespace, name):
@@ -61,7 +86,8 @@ class AzureBlobBackend:
         public_access = field_from_spec(spec, "network.publicAccess", default=_backend_config("parameters.network.public_access", default=False))
         network_rules = self._map_network_rules(spec, public_access)
         tags = _calc_tags(namespace, name)
-
+        sftp_enabled = field_from_spec(spec, "sftp.enabled", default=_backend_config("parameters.sftp.enabled",
+                                                                                     default=False))
         try:
             storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
         except:
@@ -80,6 +106,10 @@ class AzureBlobBackend:
                 enable_https_traffic_only=True,
                 allow_blob_public_access=_backend_config("allow_anonymous_access", default=False),
                 allow_shared_key_access=True,
+                is_sftp_enabled=sftp_enabled,
+                # needed to enable sftp
+                is_hns_enabled=sftp_enabled,
+                is_local_user_enabled=sftp_enabled
             )
             self._storage_client.storage_accounts.begin_create(self._resource_group, bucket_name, parameters=parameters).result()
         else:
@@ -87,10 +117,13 @@ class AzureBlobBackend:
             parameters = StorageAccountUpdateParameters(
                 tags=tags,
                 public_network_access="Enabled",  # Disabled means only via endpoint connection
-                network_rule_set=network_rules
+                network_rule_set=network_rules,
+                is_sftp_enabled=sftp_enabled,
+                # needed to enable sftp
+                is_local_user_enabled=sftp_enabled
             )
             self._storage_client.storage_accounts.update(self._resource_group, bucket_name, parameters=parameters)
-        
+
         if _backend_config("lock_from_deletion", default=False):
             self._lock_client.management_locks.create_or_update_at_resource_level(self._resource_group, "Microsoft.Storage", "", "storageAccounts", bucket_name, "DoNotDeleteLock", parameters=ManagementLockObject(level="CanNotDelete", notes="Protection from accidental deletion"))
 
@@ -106,7 +139,7 @@ class AzureBlobBackend:
             change_feed=changefeed,
         )
         self._storage_client.blob_services.set_service_properties(self._resource_group, bucket_name, parameters=parameters)
-        
+
         # Create containers
         existing_containers = dict()
         for container in self._storage_client.blob_containers.list(self._resource_group, bucket_name):
@@ -124,6 +157,29 @@ class AzureBlobBackend:
                 # system containers, ignore
                 continue
             self._storage_client.blob_containers.delete(self._resource_group, bucket_name, container.name)
+        # local users for SFTP
+        if sftp_enabled:
+            for user in spec.get("sftp", dict()).get("users", []):
+                sftp_username = user.get("username", True)
+                # get local user containers
+                user_permission_scopes = self.get_user_permission_scopes(user)
+                # get local user authorized keys
+                user_authorized_keys = self.get_user_authorized_keys(user)
+                local_user_properties = LocalUser(permission_scopes=user_permission_scopes,
+                                                  ssh_authorized_keys=user_authorized_keys)
+                # Create user
+                self._storage_client.local_users.create_or_update(self._resource_group, bucket_name,
+                                                                  sftp_username, properties=local_user_properties)
+            # Delete users
+            users_from_spec = []
+            for user in spec.get("sftp", dict()).get("users", []):
+                sftp_username = user.get("username", True)
+                users_from_spec.append(sftp_username)
+            for user in self._storage_client.local_users.list(self._resource_group, bucket_name):
+                existing_username = user.name
+                if existing_username not in users_from_spec:
+                    self._storage_client.local_users.delete(self._resource_group, bucket_name, existing_username)
+
         # Credentials
         for key in self._storage_client.storage_accounts.list_keys(self._resource_group, bucket_name).keys:
             if key.key_name == "key1":
@@ -134,6 +190,30 @@ class AzureBlobBackend:
                     "connection_string": f"DefaultEndpointsProtocol=https;AccountName={bucket_name};AccountKey={key.value};EndpointSuffix=core.windows.net",
                 }
         raise Exception("Could not find keys in azure")
+
+    def get_user_authorized_keys(self, user):
+        user_authorized_keys = []
+        for userSshKey in user.get("sshKeys", []):
+            user_key_description = userSshKey.get("description", False)
+            user_public_ssh_key = userSshKey.get("publicKey", True)
+            ssh_public_key = SshPublicKey(description=user_key_description, key=user_public_ssh_key)
+            user_authorized_keys.append(ssh_public_key)
+        return user_authorized_keys
+
+    def get_user_permission_scopes(self, user):
+        user_permission_scopes = []
+        for userAccess in user.get("access", []):
+            user_resource_name = userAccess.get("container", True)
+            spec_permissions = userAccess.get("permissions")
+            user_permission_scope = _map_user_permissions(spec_permissions)
+            user_service = "blob"
+            permission_scope = PermissionScope(
+                permissions=user_permission_scope,
+                service=user_service,
+                resource_name=user_resource_name
+            )
+            user_permission_scopes.append(permission_scope)
+        return user_permission_scopes
 
     def delete_bucket(self, namespace, name):
         bucket_name = _calc_name(namespace, name)
@@ -156,7 +236,7 @@ class AzureBlobBackend:
                     "key": key.value,
                     "connection_string": f"DefaultEndpointsProtocol=https;AccountName={bucket_name};AccountKey={key.value};EndpointSuffix=core.windows.net",
                 }
-        raise Exception("Could not find keys in azure") 
+        raise Exception("Could not find keys in azure")
 
     def _map_network_rules(self, spec, public_access):
         ip_rules = []
@@ -178,6 +258,34 @@ class AzureBlobBackend:
             ip_rules=ip_rules,
             default_action="Allow" if public_access else "Deny"
         )
+
+    def get_user_access_entries(self, spec):
+        user_access_entries = []
+        for user in spec.get("sftp", dict()).get("users", []):
+            for access in user.get("access", []):
+                user_access_entries.append(access)
+        return user_access_entries
+
+    def get_user_permissions(self, spec):
+        user_permissions = []
+        for access in self.get_user_access_entries(spec):
+            for permission in access.get("permissions", []):
+                user_permissions.append(permission)
+        return user_permissions
+
+    def get_user_container_names(self, spec):
+        user_containers = []
+        for access in self.get_user_access_entries(spec):
+            if "container" in access:
+                user_containers.append(access["container"])
+        return user_containers
+
+    def get_container_names(self, spec):
+        container_names = []
+        for container in spec.get("containers", []):
+            if "name" in container:
+                container_names.append(container["name"])
+        return container_names
 
 
 def _map_cors_rules(cors):
@@ -209,7 +317,6 @@ def _map_retention(spec):
     return retention, changefeed
 
 
-
 def _calc_tags(namespace, name, extra_tags={}):
     tags = {f"{TAGS_PREFIX}:namespace": namespace, f"{TAGS_PREFIX}:name": name}
     for k, v in extra_tags.items():
@@ -217,3 +324,27 @@ def _calc_tags(namespace, name, extra_tags={}):
     for k, v in _backend_config("tags", default={}).items():
         tags[k] = v.format(namespace=namespace, name=name)
     return tags
+
+
+def _map_user_permissions(spec_permissions):
+    mapped_user_permissions = ''
+    valid_permissions = list(filter(lambda el: el in SFTP_USER_PERMISSIONS, spec_permissions))
+    for validPermission in valid_permissions:
+        mapped_user_permissions += _map_user_permission(validPermission)
+    return mapped_user_permissions
+
+
+def _map_user_permission(spec_permission):
+    match spec_permission:
+        case "READ":
+            return 'r'
+        case "WRITE":
+            return 'w'
+        case "DELETE":
+            return 'd'
+        case "LIST":
+            return 'l'
+        case "CREATE":
+            return 'c'
+        case _:
+            return ''
