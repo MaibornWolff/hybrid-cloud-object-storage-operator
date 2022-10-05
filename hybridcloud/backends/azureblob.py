@@ -177,9 +177,8 @@ class AzureBlobBackend:
                                                                   sftp_username, properties=local_user_properties)
             # Delete users
             users_from_spec = []
-            for user in spec.get("sftp", dict()).get("users", []):
-                sftp_username = user.get("username", True)
-                users_from_spec.append(sftp_username)
+            for user in field_from_spec(spec, "sftp.users", default=[]):
+                users_from_spec.append(user["username"])
             for user in self._storage_client.local_users.list(self._resource_group, bucket_name):
                 existing_username = user.name
                 if existing_username not in users_from_spec:
