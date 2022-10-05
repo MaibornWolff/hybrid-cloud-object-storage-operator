@@ -50,26 +50,31 @@ class AzureBlobBackend:
                 return (False, f"storage account name cannot be used: {result.reason}: {result.message}")
 
         # Check user permissions validity
-        spec_user_permissions = self.get_user_permissions(spec)
+        spec_user_permissions = _get_user_permissions(spec)
         for permission in spec_user_permissions:
             if permission not in SFTP_USER_PERMISSIONS:
                 return (False, f"user permission '{permission}' is not valid")
         # Check bucket containers and containers used by local users
-        spec_user_containers = self.get_user_container_names(spec)
-        spec_containers = self.get_container_names(spec)
-        for specUserContainer in spec_user_containers:
-            if specUserContainer not in spec_containers:
-                return (False, f"user container name '{specUserContainer}' is not defined in the general container list")
+        spec_user_containers = _get_user_container_names(spec)
+        spec_containers = _get_container_names(spec)
+        for container in spec_user_containers:
+            if container not in spec_containers:
+                return (False, f"user container name '{container}' is not defined in the general container list")
 
+        sftp_enabled = field_from_spec(spec, "sftp.enabled", default=_backend_config("parameters.sftp.enabled",
+                                                                             default=False))
         # Check if existing bucket can use enabled SFTP option
         if self.bucket_exists(namespace, name):
             storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
             is_hns_enabled_in_storage_account = storage_account.is_hns_enabled
-            sftp_enabled = field_from_spec(spec, "sftp.enabled", default=_backend_config("parameters.sftp.enabled",
-                                                                                         default=False))
             # if hierarchical namespace (HNS) not aénabled at creation, SFTP cannot be enabled
             if sftp_enabled and not is_hns_enabled_in_storage_account:
                 return (False, f"SFTP cannot be enabled because hierarchical namespace (HNS) option is disabled. SFTP can be enabled only at creation time of the storage account")
+
+        # Check if SFTP and Versioning are both enabled; this isn't a valid state
+        versioning = field_from_spec(spec, "dataRetention.versioning.enabled", default=_backend_config("parameters.versioning.enabled", default=False))
+        if sftp_enabled and versioning:
+            return (False, "SFTP and Versioning options cannot be both enabled")
 
         return (True, "")
 
@@ -159,12 +164,12 @@ class AzureBlobBackend:
             self._storage_client.blob_containers.delete(self._resource_group, bucket_name, container.name)
         # local users for SFTP
         if sftp_enabled:
-            for user in spec.get("sftp", dict()).get("users", []):
-                sftp_username = user.get("username", True)
+            for user in field_from_spec(spec, "sftp.users", default=[]):
+                sftp_username = user["username"]
                 # get local user containers
-                user_permission_scopes = self.get_user_permission_scopes(user)
+                user_permission_scopes = _get_user_permission_scopes(user)
                 # get local user authorized keys
-                user_authorized_keys = self.get_user_authorized_keys(user)
+                user_authorized_keys = _get_user_authorized_keys(user)
                 local_user_properties = LocalUser(permission_scopes=user_permission_scopes,
                                                   ssh_authorized_keys=user_authorized_keys)
                 # Create user
@@ -191,29 +196,6 @@ class AzureBlobBackend:
                 }
         raise Exception("Could not find keys in azure")
 
-    def get_user_authorized_keys(self, user):
-        user_authorized_keys = []
-        for userSshKey in user.get("sshKeys", []):
-            user_key_description = userSshKey.get("description", False)
-            user_public_ssh_key = userSshKey.get("publicKey", True)
-            ssh_public_key = SshPublicKey(description=user_key_description, key=user_public_ssh_key)
-            user_authorized_keys.append(ssh_public_key)
-        return user_authorized_keys
-
-    def get_user_permission_scopes(self, user):
-        user_permission_scopes = []
-        for userAccess in user.get("access", []):
-            user_resource_name = userAccess.get("container", True)
-            spec_permissions = userAccess.get("permissions")
-            user_permission_scope = _map_user_permissions(spec_permissions)
-            user_service = "blob"
-            permission_scope = PermissionScope(
-                permissions=user_permission_scope,
-                service=user_service,
-                resource_name=user_resource_name
-            )
-            user_permission_scopes.append(permission_scope)
-        return user_permission_scopes
 
     def delete_bucket(self, namespace, name):
         bucket_name = _calc_name(namespace, name)
@@ -259,34 +241,6 @@ class AzureBlobBackend:
             default_action="Allow" if public_access else "Deny"
         )
 
-    def get_user_access_entries(self, spec):
-        user_access_entries = []
-        for user in spec.get("sftp", dict()).get("users", []):
-            for access in user.get("access", []):
-                user_access_entries.append(access)
-        return user_access_entries
-
-    def get_user_permissions(self, spec):
-        user_permissions = []
-        for access in self.get_user_access_entries(spec):
-            for permission in access.get("permissions", []):
-                user_permissions.append(permission)
-        return user_permissions
-
-    def get_user_container_names(self, spec):
-        user_containers = []
-        for access in self.get_user_access_entries(spec):
-            if "container" in access:
-                user_containers.append(access["container"])
-        return user_containers
-
-    def get_container_names(self, spec):
-        container_names = []
-        for container in spec.get("containers", []):
-            if "name" in container:
-                container_names.append(container["name"])
-        return container_names
-
 
 def _map_cors_rules(cors):
     if not cors:
@@ -329,8 +283,8 @@ def _calc_tags(namespace, name, extra_tags={}):
 def _map_user_permissions(spec_permissions):
     mapped_user_permissions = ''
     valid_permissions = list(filter(lambda el: el in SFTP_USER_PERMISSIONS, spec_permissions))
-    for validPermission in valid_permissions:
-        mapped_user_permissions += _map_user_permission(validPermission)
+    for valid_permission in valid_permissions:
+        mapped_user_permissions += _map_user_permission(valid_permission)
     return mapped_user_permissions
 
 
@@ -348,3 +302,63 @@ def _map_user_permission(spec_permission):
             return 'c'
         case _:
             return ''
+
+
+def _get_user_permission_scopes(user):
+    user_permission_scopes = []
+    for user_access in user.get("access", []):
+        user_resource_name = user_access.get("container", "")
+        spec_permissions = user_access.get("permissions", [])
+        if (not user_resource_name) or (not spec_permissions):
+            continue
+        user_permission_scope = _map_user_permissions(spec_permissions)
+        user_service = "blob"
+        permission_scope = PermissionScope(
+            permissions=user_permission_scope,
+            service=user_service,
+            resource_name=user_resource_name
+        )
+        user_permission_scopes.append(permission_scope)
+    return user_permission_scopes
+
+
+def _get_user_access_entries(spec):
+    user_access_entries = []
+    for user in field_from_spec(spec, "sftp.users", default=[]):
+        for access in user.get("access", []):
+            user_access_entries.append(access)
+    return user_access_entries
+
+
+def _get_user_permissions(spec):
+    user_permissions = []
+    for access in _get_user_access_entries(spec):
+        for permission in access.get("permissions", []):
+            user_permissions.append(permission)
+    return user_permissions
+
+
+def _get_user_container_names(spec):
+    user_containers = []
+    for access in _get_user_access_entries(spec):
+        if "container" in access:
+            user_containers.append(access["container"])
+    return user_containers
+
+
+def _get_container_names(spec):
+    container_names = []
+    for container in spec.get("containers", []):
+        if "name" in container:
+            container_names.append(container["name"])
+    return container_names
+
+
+def _get_user_authorized_keys(user):
+    user_authorized_keys = []
+    for user_ssh_key in user.get("sshKeys", []):
+        user_key_description = user_ssh_key.get("description", "")
+        user_public_ssh_key = user_ssh_key.get("publicKey")
+        ssh_public_key = SshPublicKey(description=user_key_description, key=user_public_ssh_key)
+        user_authorized_keys.append(ssh_public_key)
+    return user_authorized_keys

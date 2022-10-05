@@ -112,6 +112,8 @@ backends:  # Configuration for the different backends. Required fields are only 
       delete_retention:
         enabled: false  # It set to true retention of deleted data will be enabled, optional
         days: 2  # Number of days to keep deleted data, optional
+      sftp:  # SFTP feature can only be enabled for the first time at creation of the storage account. Background: The hierarchical namespace setting is needed for SFTP and will be used implicitly but it can be only set at creation time.
+        enabled: true  # enable SFTP interface, required
 ```
 
 Single configuration options can also be provided via environment variables, the complete path is concatenated using underscores, written in uppercase and prefixed with `HYBRIDCLOUD_`. As an example: `backends.azureblob.subscription_id` becomes `HYBRIDCLOUD_BACKENDS_AZUREBLOB_SUBSCRIPTION_ID`.
@@ -190,10 +192,9 @@ spec:
             permissions:  # list of the operations a user can do. Possible values are READ, WRITE, DELETE, LIST, CREATE 
               - READ
               - LIST
-        sshKeys:  # public key authentication is supported, required; publicKey is a required field too
-          - description: just a sample description
-            publicKey: |
-              ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC5iLKWmx/OFab6x76i5aRTuavBJont8s+x/Zq7BSGqwtVPEgzMQNXwMlXVm1S5vGlZUuBRVaVuWEuL7z96Tve2hEnW0410l7Unw+HvMut3aSRO9zebMhbHmlQ3yMuSSVE85CYt3IAM4LRnJCXtqsybd9wNo8vjkg7Vh9YoGvE8LwB+VCtp7gqZ8zAcZn8cekAeE97lsE6ZerWvSXbNal7ZvvJRIC/mGYGMbL62z1gAbZUlDD/TryCFBSiKEy4XwMc+Br3kCPi0fBf9jH+y0uD5pFQ5xK2CZAj87moXTu7uR3c5dmOh6ZBxBI8DdTvywhvQMGs5sujZRqjpipPc9pt+RaoyaBSB1/Dxpp/He+fJT/pezMmgNIHU6qxnRlqeq1NUFsZuK3LpKKsOjwurtn1678vrOUMTUUqGGooe5TGqm28ynqKnyDIr/yYOaBOWg5D01PbATiJNSMklOQmKNwQrX4Wa44o8C5uWDHIkspGzxy9HGzPszFqxG3eO3jwqmYNFe9DDuGo/HLeNnbr+etq54l/KVaO3kq+iDiBSDfRhUYYaHDszALnJdJjKdXaTNRwXm3NgXdvVE2C6iNJXMWUVlFfvG7weaerA12E4A5P4lt20LPo5QUy9kRY2lG3no6ECwf+HCuac80rui5c4SKNcBsyc8EaEdfJeee6JVWE61w== key for azure test user
+        sshKeys:  # public key authentication is supported, required
+          - description: just a sample description  # key description
+            publicKey:  # public key, required
   credentialsSecret: teamfoo-storage-credentials  # Name of a secret where the credentials for the bucket should be stored, required
 ```
 
