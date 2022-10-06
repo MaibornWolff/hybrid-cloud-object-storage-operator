@@ -112,6 +112,8 @@ backends:  # Configuration for the different backends. Required fields are only 
       delete_retention:
         enabled: false  # It set to true retention of deleted data will be enabled, optional
         days: 2  # Number of days to keep deleted data, optional
+      sftp:  # SFTP feature can only be enabled for the first time at creation of the storage account. Background: The hierarchical namespace setting is needed for SFTP and will be used implicitly but it can be only set at creation time.
+        enabled: true  # enable SFTP interface, required
 ```
 
 Single configuration options can also be provided via environment variables, the complete path is concatenated using underscores, written in uppercase and prefixed with `HYBRIDCLOUD_`. As an example: `backends.azureblob.subscription_id` becomes `HYBRIDCLOUD_BACKENDS_AZUREBLOB_SUBSCRIPTION_ID`.
@@ -181,6 +183,18 @@ spec:
   containers:  # Only relevant for azure, list of containers to create in the bucket, for azure at least one is required, containers not on the list will be removed from the storage account, including their data
     - name: assets  # Name of the container, required
       anonymousAccess: false  # If set to true objects in the container can be accessed without authentication/authorization, only relevant if `security.anonymousAccess` is set to true, optional
+  sftp:  # SFTP feature can only be enabled for the first time at creation of the storage account. Background: The hierarchical namespace setting is needed for SFTP and will be used implicitly but it can be only set at creation time.
+    enabled: true  # enable SFTP interface, required
+    users:  # creating users that can access the bucket via SFTP protocol
+      - username: techuser  # username, required
+        access:  # definition which ressources can be accessed by the user. Currently only blob resources are supported.
+          - container: assets  # name of the container
+            permissions:  # list of the operations a user can do. Possible values are READ, WRITE, DELETE, LIST, CREATE 
+              - READ
+              - LIST
+        sshKeys:  # public key authentication is supported, required
+          - description: just a sample description  # key description
+            publicKey:  # public key, required
   credentialsSecret: teamfoo-storage-credentials  # Name of a secret where the credentials for the bucket should be stored, required
 ```
 
