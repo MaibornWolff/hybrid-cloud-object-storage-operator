@@ -65,12 +65,13 @@ To test out the operator you currently need an Azure account with a service prin
                 public_access: true
     ```
 
-4. Run `helm install hybrid-cloud-object-storage-operator hybrid-cloud-object-storage-operator/hybrid-cloud-object-storage-operator -f operator-values.yaml` to install the operator.
-5. Check if the pod of the operator is running and healthy: `kubectl get pods -l app.kubernetes.io/name=hybrid-cloud-object-storage-operator`.
-6. Create your first bucket: `kubectl apply -f examples/azureblob.yaml`.
-7. Check in azure to see if the new storage account is created.
-8. Retrieve the credentials for the storage account: `kubectl get secretdemoteam-storage-credentials -o jsonpath="{.data.key}" | base64 -d`
-9. After you are finished, delete the bucket again: `kubectl delete -f examples/azureblob.yaml`
+4. Run `helm install hybrid-cloud-object-storage-operator-crds maibornwolff/hybrid-cloud-object-storage-operator-crds` to install the CRDs for the operator.
+5. Run `helm install hybrid-cloud-object-storage-operator hybrid-cloud-object-storage-operator/hybrid-cloud-object-storage-operator -f operator-values.yaml` to install the operator.
+6. Check if the pod of the operator is running and healthy: `kubectl get pods -l app.kubernetes.io/name=hybrid-cloud-object-storage-operator`.
+7. Create your first bucket: `kubectl apply -f examples/azureblob.yaml`.
+8. Check in azure to see if the new storage account is created.
+9. Retrieve the credentials for the storage account: `kubectl get secretdemoteam-storage-credentials -o jsonpath="{.data.key}" | base64 -d`
+10. After you are finished, delete the bucket again: `kubectl delete -f examples/azureblob.yaml`
 
 ## Operations Guide
 
@@ -113,7 +114,7 @@ backends:  # Configuration for the different backends. Required fields are only 
         enabled: false  # It set to true retention of deleted data will be enabled, optional
         days: 2  # Number of days to keep deleted data, optional
       sftp:  # SFTP feature can only be enabled for the first time at creation of the storage account. Background: The hierarchical namespace setting is needed for SFTP and will be used implicitly but it can be only set at creation time.
-        enabled: true  # enable SFTP interface, required
+        enabled: false  # enable SFTP interface, optional
 ```
 
 Single configuration options can also be provided via environment variables, the complete path is concatenated using underscores, written in uppercase and prefixed with `HYBRIDCLOUD_`. As an example: `backends.azureblob.subscription_id` becomes `HYBRIDCLOUD_BACKENDS_AZUREBLOB_SUBSCRIPTION_ID`.
@@ -133,7 +134,8 @@ For the operator to interact with Azure it needs credentials. For local testing 
 The operator can be deployed via helm chart:
 
 1. Run `helm repo add hybrid-cloud-object-storage-operator https://maibornwolff.github.io/hybrid-cloud-object-storage-operator/` to prepare the helm repository.
-2. Run `helm install hybrid-cloud-object-storage-operator hybrid-cloud-object-storage-operator/hybrid-cloud-object-storage-operator -f values.yaml` to install the operator.
+2. Run `helm install hybrid-cloud-object-storage-operator-crds maibornwolff/hybrid-cloud-object-storage-operator-crds` to install the CRDs for the operator.
+3. Run `helm install hybrid-cloud-object-storage-operator hybrid-cloud-object-storage-operator/hybrid-cloud-object-storage-operator -f values.yaml` to install the operator.
 
 Configuration of the operator is done via helm values. For a full list of the available values see the [values.yaml in the chart](./helm/hybrid-cloud-object-storage-operator/values.yaml). These are the important ones:
 

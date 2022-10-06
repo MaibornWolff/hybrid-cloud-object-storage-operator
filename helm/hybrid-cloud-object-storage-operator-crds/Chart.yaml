@@ -1,0 +1,6 @@
+apiVersion: v2
+name: hybrid-cloud-object-storage-operator-crds
+description: Installs the CRDs for the hybrid-cloud-object-storage-operator
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
