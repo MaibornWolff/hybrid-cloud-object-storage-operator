@@ -102,6 +102,10 @@ backends:  # Configuration for the different backends. Required fields are only 
       vnets:  # List of vnets the storage account should allow access from. Each vnet listed here must have Microsoft.Storage added to the ServiceEndpoints collection of the subnet, optional
         - vnet: foobar-vnet  # Name of the virtual network, required
           subnet: default  # Name of the subnet, required
+    backup: # Configuration for use of Azure Backup Services
+      enabled: false  # If enabled, the storage account will be added to an existing backup vault. Backup instances will not be cleaned up with Object Storage Buckets for recovery purposes
+      vault_name: foobar-vault  # The name of the existing backup vault, make sure the Storage Account has the Role Assignment "Storage Account Backup Contributor" for the according vault
+      policy_id: 123123123  # The policy within the backup vault to use
     parameters:  # Fields here define defaults for parameters also in the CRD and are used if the parameter is not set in the custom object supplied by the user
       network:
         public_access: false  # If set to true no network restrictions are placed on the storage account, if set to false access is only possible through vnet and firewall rules, optional
@@ -215,7 +219,7 @@ To run it locally follow these steps:
 1. Create and activate a local python virtualenv
 2. Install dependencies: `pip install -r requirements.txt`
 3. Setup a local kubernetes cluster, e.g. with k3d: `k3d cluster create`
-4. Apply the CRDs in your local cluster: `kubectl apply -f helm/hybrid-cloud-object-storage-operator/crds/`
+4. Apply the CRDs in your local cluster: `kubectl apply -f helm/hybrid-cloud-object-storage-operator-crds/templates/`
 5. If you want to deploy to azure: Either have the azure cli installed and configured with an active login or export the following environment variables: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
 6. Adapt the `config.yaml` to suit your needs
 7. Run `kopf run main.py -A`

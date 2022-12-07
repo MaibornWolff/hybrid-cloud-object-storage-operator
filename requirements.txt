@@ -3,4 +3,5 @@ kopf==1.35.2
 azure-identity==1.7.1
 azure-mgmt-resource==20.0.0
 azure-mgmt-storage==19.1.0
+azure-mgmt-dataprotection==1.0.0b2
 pyyaml==6.0

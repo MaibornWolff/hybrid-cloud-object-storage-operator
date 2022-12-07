@@ -9,7 +9,7 @@ _config = None
 
 class ConfigurationException(Exception):
     def __init__(self, description):
-        super().__init(description)
+        super().__init__(description)
 
 
 def _get_config_value_from_env(key):

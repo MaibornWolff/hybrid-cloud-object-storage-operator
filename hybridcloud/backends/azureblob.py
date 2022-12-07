@@ -6,7 +6,8 @@ from azure.mgmt.storage.models import StorageAccountCreateParameters, StorageAcc
     StorageAccountCheckNameAvailabilityParameters, StorageAccountRegenerateKeyParameters, \
     DeleteRetentionPolicy, RestorePolicyProperties, ChangeFeed, LocalUser, PermissionScope, SshPublicKey
 from azure.mgmt.resource.locks.models import ManagementLockObject
-from ..util.azure import azure_client_storage, azure_client_locks
+from azure.mgmt.dataprotection.models import BackupInstanceResource, BackupInstance, PolicyInfo, Datasource
+from ..util.azure import azure_client_storage, azure_client_locks, azure_backup_client
 from ..config import config_get
 from ..util.reconcile_helpers import field_from_spec
 
@@ -36,6 +37,7 @@ class AzureBlobBackend:
         self._logger = logger
         self._storage_client = azure_client_storage()
         self._lock_client = azure_client_locks()
+        self._backup_client = azure_backup_client()
         self._subscription_id = _backend_config("subscription_id", fail_if_missing=True)
         self._location = _backend_config("location", fail_if_missing=True)
         self._resource_group = _backend_config("resource_group", fail_if_missing=True)
@@ -93,6 +95,8 @@ class AzureBlobBackend:
         tags = _calc_tags(namespace, name)
         sftp_enabled = field_from_spec(spec, "sftp.enabled", default=_backend_config("parameters.sftp.enabled",
                                                                                      default=False))
+        backup_enabled = _backend_config("backup.enabled", default=False)
+
         try:
             storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
         except:
@@ -117,6 +121,7 @@ class AzureBlobBackend:
                 is_local_user_enabled=sftp_enabled
             )
             self._storage_client.storage_accounts.begin_create(self._resource_group, bucket_name, parameters=parameters).result()
+            storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
         else:
             # Update storage account
             parameters = StorageAccountUpdateParameters(
@@ -183,6 +188,35 @@ class AzureBlobBackend:
                 existing_username = user.name
                 if existing_username not in users_from_spec:
                     self._storage_client.local_users.delete(self._resource_group, bucket_name, existing_username)
+
+        if backup_enabled:
+            vault_name = _backend_config("backup.vault_name", fail_if_missing=True)
+            policy_name = _backend_config("backup.policy_name", fail_if_missing=True)
+
+            policy_id = f"/subscriptions/{self._subscription_id}/resourceGroups/{self._resource_group}/providers/Microsoft.DataProtection/backupVaults/{vault_name}/backupPolicies/{policy_name}"
+
+            backup_properties = BackupInstanceResource(
+                properties=BackupInstance(
+                    policy_info=PolicyInfo(
+                        policy_id=policy_id
+                    ),
+                    data_source_info=Datasource(
+                        datasource_type="Microsoft.Storage/storageAccounts/blobServices",
+                        resource_id=storage_account.id,
+                        resource_name=storage_account.name,
+                        resource_type="Microsoft.Storage/storageAccounts",
+                        resource_location=self._location,
+                    ),
+                    object_type="BackupInstance",
+                )
+            )
+
+            self._backup_client.backup_instances.begin_create_or_update(
+                resource_group_name=self._resource_group,
+                vault_name=vault_name,
+                backup_instance_name=bucket_name,
+                parameters=backup_properties
+            ).result()
 
         # Credentials
         for key in self._storage_client.storage_accounts.list_keys(self._resource_group, bucket_name).keys:
