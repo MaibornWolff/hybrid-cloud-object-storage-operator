@@ -10,7 +10,7 @@ from azure.mgmt.dataprotection.models import BackupInstanceResource, BackupInsta
 from ..util.azure import azure_client_storage, azure_client_locks, azure_backup_client
 from ..config import config_get
 from ..util.reconcile_helpers import field_from_spec
-from ..util.exceptions import BackupEnabledException
+from ..util.exceptions import DeletionWithBackupEnabledException
 
 TAGS_PREFIX = "hybridcloud-object-storage-operator"
 HTTP_METHODS = ["DELETE", "GET", "HEAD", "MERGE", "OPTIONS", "PATCH", "POST", "PUT"]
@@ -145,7 +145,7 @@ class AzureBlobBackend:
             self._storage_client.storage_accounts.update(self._resource_group, bucket_name, parameters=parameters)
 
         if _backend_config("lock_from_deletion", default=False):
-            self._lock_client.management_locks.create_or_update_at_resource_leve(self._resource_group, "Microsoft.Storage", "", "storageAccounts", bucket_name, "DoNotDeleteLock", parameters=ManagementLockObject(level="CanNotDelete", notes="Protection from accidental deletion"))
+            self._lock_client.management_locks.create_or_update_at_resource_level(self._resource_group, "Microsoft.Storage", "", "storageAccounts", bucket_name, "DoNotDeleteLock", parameters=ManagementLockObject(level="CanNotDelete", notes="Protection from accidental deletion"))
 
         # Create blob services
         retention, changefeed = _map_retention(spec)
@@ -260,7 +260,7 @@ class AzureBlobBackend:
                 backup_lock = None
 
             if backup_lock is not None:
-                raise BackupEnabledException(f"Failed to delete storage account {bucket_name}. Disable Azure Backup for the storage account manually before deletion.")
+                raise DeletionWithBackupEnabledException(f"Failed to delete storage account {bucket_name}. Disable Azure Backup for the storage account manually before deletion.")
 
             self._storage_client.storage_accounts.delete(self._resource_group, bucket_name)
 

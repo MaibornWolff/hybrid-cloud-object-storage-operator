@@ -1,2 +1,2 @@
-class BackupEnabledException(Exception):
+class DeletionWithBackupEnabledException(Exception):
     pass
