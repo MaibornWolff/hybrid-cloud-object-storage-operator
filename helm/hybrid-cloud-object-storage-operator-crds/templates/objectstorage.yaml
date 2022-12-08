@@ -97,6 +97,11 @@ spec:
                           type: boolean
                         retentionPeriodInDays:
                           type: number
+                backup:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
                 containers:
                   type: array
                   items:

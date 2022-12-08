@@ -10,6 +10,7 @@ from azure.mgmt.dataprotection.models import BackupInstanceResource, BackupInsta
 from ..util.azure import azure_client_storage, azure_client_locks, azure_backup_client
 from ..config import config_get
 from ..util.reconcile_helpers import field_from_spec
+from ..util.exceptions import BackupEnabledException
 
 TAGS_PREFIX = "hybridcloud-object-storage-operator"
 HTTP_METHODS = ["DELETE", "GET", "HEAD", "MERGE", "OPTIONS", "PATCH", "POST", "PUT"]
@@ -78,6 +79,15 @@ class AzureBlobBackend:
         if sftp_enabled and versioning:
             return (False, "SFTP and Versioning options cannot be both enabled")
 
+        backup_enabled = field_from_spec(spec, "backup.enabled", default=_backend_config("parameters.backup.enabled", default=False))
+        
+        if backup_enabled:
+            vault_name = _backend_config("backup.vault_name", default="")
+            policy_name = _backend_config("backup.policy_name", default="")
+
+            if vault_name == "" or policy_name == "":
+                return (False, "Backup is enabled but vault_name and policy_name are not properly configured")
+
         return (True, "")
 
     def bucket_exists(self, namespace, name):
@@ -95,7 +105,7 @@ class AzureBlobBackend:
         tags = _calc_tags(namespace, name)
         sftp_enabled = field_from_spec(spec, "sftp.enabled", default=_backend_config("parameters.sftp.enabled",
                                                                                      default=False))
-        backup_enabled = _backend_config("backup.enabled", default=False)
+        backup_enabled = field_from_spec(spec, "backup.enabled", default=_backend_config("parameters.backup.enabled", default=False))
 
         try:
             storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
@@ -135,7 +145,7 @@ class AzureBlobBackend:
             self._storage_client.storage_accounts.update(self._resource_group, bucket_name, parameters=parameters)
 
         if _backend_config("lock_from_deletion", default=False):
-            self._lock_client.management_locks.create_or_update_at_resource_level(self._resource_group, "Microsoft.Storage", "", "storageAccounts", bucket_name, "DoNotDeleteLock", parameters=ManagementLockObject(level="CanNotDelete", notes="Protection from accidental deletion"))
+            self._lock_client.management_locks.create_or_update_at_resource_leve(self._resource_group, "Microsoft.Storage", "", "storageAccounts", bucket_name, "DoNotDeleteLock", parameters=ManagementLockObject(level="CanNotDelete", notes="Protection from accidental deletion"))
 
         # Create blob services
         retention, changefeed = _map_retention(spec)
@@ -237,6 +247,21 @@ class AzureBlobBackend:
             tags = _calc_tags(namespace, name, {"marked-for-deletion": "yes"})
             self._storage_client.storage_accounts.update(self._resource_group, bucket_name, parameters=StorageAccountUpdateParameters(tags=tags))
         else:
+            try:
+                backup_lock = self._lock_client.management_locks.get_at_resource_level(
+                    lock_name="AzureBackupLock-DoNotDelete",
+                    resource_name=bucket_name,
+                    resource_type="storageAccounts",
+                    resource_provider_namespace="Microsoft.Storage",
+                    resource_group_name=self._resource_group,
+                    parent_resource_path=""
+                )
+            except:
+                backup_lock = None
+
+            if backup_lock is not None:
+                raise BackupEnabledException(f"Failed to delete storage account {bucket_name}. Disable Azure Backup for the storage account manually before deletion.")
+
             self._storage_client.storage_accounts.delete(self._resource_group, bucket_name)
 
     def reset_credentials(self, namespace, name):

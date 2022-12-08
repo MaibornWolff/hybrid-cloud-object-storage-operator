@@ -103,7 +103,6 @@ backends:  # Configuration for the different backends. Required fields are only 
         - vnet: foobar-vnet  # Name of the virtual network, required
           subnet: default  # Name of the subnet, required
     backup: # Configuration for use of Azure Backup Services
-      enabled: false  # If enabled, the storage account will be added to an existing backup vault. Backup instances will not be cleaned up with Object Storage Buckets for recovery purposes
       vault_name: foobar-vault  # The name of the existing backup vault, make sure the Storage Account has the Role Assignment "Storage Account Backup Contributor" for the according vault
       policy_id: 123123123  # The policy within the backup vault to use
     parameters:  # Fields here define defaults for parameters also in the CRD and are used if the parameter is not set in the custom object supplied by the user
@@ -119,6 +118,9 @@ backends:  # Configuration for the different backends. Required fields are only 
         days: 2  # Number of days to keep deleted data, optional
       sftp:  # SFTP feature can only be enabled for the first time at creation of the storage account. Background: The hierarchical namespace setting is needed for SFTP and will be used implicitly but it can be only set at creation time.
         enabled: false  # enable SFTP interface, optional
+      backup:
+        enabled: false  # If enabled, the storage accounts will be added to an existing backup vault by default. Backup instances will not be cleaned up with Object Storage Buckets for recovery purposes
+
 ```
 
 Single configuration options can also be provided via environment variables, the complete path is concatenated using underscores, written in uppercase and prefixed with `HYBRIDCLOUD_`. As an example: `backends.azureblob.subscription_id` becomes `HYBRIDCLOUD_BACKENDS_AZUREBLOB_SUBSCRIPTION_ID`.
@@ -186,6 +188,8 @@ spec:
     deleteRetention:  # Settings related to delete retention, optional
       enabled: false  # Enable retention on delete, optional
       retentionPeriodInDays: 1  # Days to keep deleted data, optional
+  backup:
+    enabled: false  # Override the default backup strategy configured in the global operator config
   containers:  # Only relevant for azure, list of containers to create in the bucket, for azure at least one is required, containers not on the list will be removed from the storage account, including their data
     - name: assets  # Name of the container, required
       anonymousAccess: false  # If set to true objects in the container can be accessed without authentication/authorization, only relevant if `security.anonymousAccess` is set to true, optional
