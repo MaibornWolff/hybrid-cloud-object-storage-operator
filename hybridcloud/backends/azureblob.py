@@ -131,7 +131,6 @@ class AzureBlobBackend:
                 is_local_user_enabled=sftp_enabled
             )
             self._storage_client.storage_accounts.begin_create(self._resource_group, bucket_name, parameters=parameters).result()
-            storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
         else:
             # Update storage account
             parameters = StorageAccountUpdateParameters(
@@ -143,6 +142,8 @@ class AzureBlobBackend:
                 is_local_user_enabled=sftp_enabled
             )
             self._storage_client.storage_accounts.update(self._resource_group, bucket_name, parameters=parameters)
+
+        storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
 
         if _backend_config("lock_from_deletion", default=False):
             self._lock_client.management_locks.create_or_update_at_resource_level(self._resource_group, "Microsoft.Storage", "", "storageAccounts", bucket_name, "DoNotDeleteLock", parameters=ManagementLockObject(level="CanNotDelete", notes="Protection from accidental deletion"))
