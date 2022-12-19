@@ -82,11 +82,17 @@ class AzureBlobBackend:
         backup_enabled = field_from_spec(spec, "backup.enabled", default=_backend_config("parameters.backup.enabled", default=False))
         
         if backup_enabled:
-            vault_name = _backend_config("backup.vault_name", default="")
-            policy_name = _backend_config("backup.policy_name", default="")
+            vault_name = _backend_config("backup.vault_name", default=None)
+            policy_name = _backend_config("backup.policy_name", default=None)
 
-            if vault_name == "" or policy_name == "":
-                return (False, "Backup is enabled but vault_name and policy_name are not properly configured")
+            if vault_name is None or policy_name is None:
+                return (False, "Backup is requested for this bucket but has not been configured for this backend in the operator configuration")
+        else:
+            backup_lock = self._get_backup_lock(bucket_name)
+            
+            # Check if backup was enabled before
+            if backup_lock is not None:
+                return (False, "Backup was disabled, but has been enabled before. Disable Azure Backup for the storage account manually before deletion.")
 
         return (True, "")
 
@@ -142,8 +148,6 @@ class AzureBlobBackend:
                 is_local_user_enabled=sftp_enabled
             )
             self._storage_client.storage_accounts.update(self._resource_group, bucket_name, parameters=parameters)
-
-        storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
 
         if _backend_config("lock_from_deletion", default=False):
             self._lock_client.management_locks.create_or_update_at_resource_level(self._resource_group, "Microsoft.Storage", "", "storageAccounts", bucket_name, "DoNotDeleteLock", parameters=ManagementLockObject(level="CanNotDelete", notes="Protection from accidental deletion"))
@@ -201,6 +205,8 @@ class AzureBlobBackend:
                     self._storage_client.local_users.delete(self._resource_group, bucket_name, existing_username)
 
         if backup_enabled:
+            storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
+
             vault_name = _backend_config("backup.vault_name", fail_if_missing=True)
             policy_name = _backend_config("backup.policy_name", fail_if_missing=True)
 
@@ -248,17 +254,7 @@ class AzureBlobBackend:
             tags = _calc_tags(namespace, name, {"marked-for-deletion": "yes"})
             self._storage_client.storage_accounts.update(self._resource_group, bucket_name, parameters=StorageAccountUpdateParameters(tags=tags))
         else:
-            try:
-                backup_lock = self._lock_client.management_locks.get_at_resource_level(
-                    lock_name="AzureBackupLock-DoNotDelete",
-                    resource_name=bucket_name,
-                    resource_type="storageAccounts",
-                    resource_provider_namespace="Microsoft.Storage",
-                    resource_group_name=self._resource_group,
-                    parent_resource_path=""
-                )
-            except:
-                backup_lock = None
+            backup_lock = self._get_backup_lock(bucket_name)
 
             if backup_lock is not None:
                 raise DeletionWithBackupEnabledException(f"Failed to delete storage account {bucket_name}. Disable Azure Backup for the storage account manually before deletion.")
@@ -299,6 +295,19 @@ class AzureBlobBackend:
             ip_rules=ip_rules,
             default_action="Allow" if public_access else "Deny"
         )
+
+    def _get_backup_lock(self, bucket_name):
+        try:
+            return self._lock_client.management_locks.get_at_resource_level(
+                lock_name="AzureBackupLock-DoNotDelete",
+                resource_name=bucket_name,
+                resource_type="storageAccounts",
+                resource_provider_namespace="Microsoft.Storage",
+                resource_group_name=self._resource_group,
+                parent_resource_path=""
+                )
+        except:
+            return None
 
 
 def _map_cors_rules(cors):
