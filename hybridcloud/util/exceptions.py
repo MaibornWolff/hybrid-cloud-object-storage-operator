@@ -1,0 +1,2 @@
+class DeletionWithBackupEnabledException(Exception):
+    pass

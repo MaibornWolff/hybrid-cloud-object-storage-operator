@@ -102,6 +102,9 @@ backends:  # Configuration for the different backends. Required fields are only 
       vnets:  # List of vnets the storage account should allow access from. Each vnet listed here must have Microsoft.Storage added to the ServiceEndpoints collection of the subnet, optional
         - vnet: foobar-vnet  # Name of the virtual network, required
           subnet: default  # Name of the subnet, required
+    backup: # Configuration for use of Azure Backup Services. vault_name and policy_id are mandatory, if you want to use Azure Backup
+      vault_name: foobar-vault  # The name of the existing backup vault, make sure the Storage Account has the Role Assignment "Storage Account Backup Contributor" for the according vault
+      policy_id: 123123123  # The policy within the backup vault to use
     parameters:  # Fields here define defaults for parameters also in the CRD and are used if the parameter is not set in the custom object supplied by the user
       network:
         public_access: false  # If set to true no network restrictions are placed on the storage account, if set to false access is only possible through vnet and firewall rules, optional
@@ -115,6 +118,9 @@ backends:  # Configuration for the different backends. Required fields are only 
         days: 2  # Number of days to keep deleted data, optional
       sftp:  # SFTP feature can only be enabled for the first time at creation of the storage account. Background: The hierarchical namespace setting is needed for SFTP and will be used implicitly but it can be only set at creation time.
         enabled: false  # enable SFTP interface, optional
+      backup:
+        enabled: false  # If enabled, the storage accounts will be added to an existing backup vault by default. Backup instances will not be cleaned up with Object Storage Buckets for recovery purposes
+
 ```
 
 Single configuration options can also be provided via environment variables, the complete path is concatenated using underscores, written in uppercase and prefixed with `HYBRIDCLOUD_`. As an example: `backends.azureblob.subscription_id` becomes `HYBRIDCLOUD_BACKENDS_AZUREBLOB_SUBSCRIPTION_ID`.
@@ -123,6 +129,8 @@ To protect storage accounts against accidential deletion you can enable `lock_fr
 The azure backend also support a feature called `fake deletion` (via options `delete_fake`) where the storage accounts are not actually deleted but only tagged to mark it as deleted when the kubernetes custom object is deleted. This can be used in situations where the operator is freshly introduced in an environment where the users have little experience with this type of declarative management and you want to reduce the risk of accidental data loss.
 
 For the azureblob backend there are several ways to protect the storage accounts from external access. One is on the network layer by disabling network access to the accounts from outside the cluster (via the `parameters.network.public_access` and `parameters.network.firewall_rules` and `network.vnets`) and the other is on the access layer by disallowing anonymous access (via `allow_anonymous_access`, this only gives the users the right to configure anonymous access, unless a user specifically does that only authenticated access is possible).
+
+The azureblob backend supports backups using [Azure Backup Vaults](https://learn.microsoft.com/en-us/azure/backup/backup-vault-overview). To enable Azure backup, first set the two fields `backup.vault_name` (the existing backup vault to use) and `backup.policy_id` (the existing policy to use). Now you can either enable backups by default using the field `parameters.backup.enabled` or configure backup per manifest using the field `backup.enabled`. Note: the configuration in the manifest overrides the global operator configuration.
 
 For the operator to interact with Azure it needs credentials. For local testing it can pick up the token from the azure cli but for real deployments it needs a dedicated service principal. Supply the credentials for the service principal using the environment variables `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` (if you deploy via the helm chart use the use `envSecret` value). Depending on the backend the operator requires the following azure permissions within the scope of the resource group it deploys to:
 
@@ -182,6 +190,8 @@ spec:
     deleteRetention:  # Settings related to delete retention, optional
       enabled: false  # Enable retention on delete, optional
       retentionPeriodInDays: 1  # Days to keep deleted data, optional
+  backup:
+    enabled: false  # Override the default backup strategy configured in the global operator config
   containers:  # Only relevant for azure, list of containers to create in the bucket, for azure at least one is required, containers not on the list will be removed from the storage account, including their data
     - name: assets  # Name of the container, required
       anonymousAccess: false  # If set to true objects in the container can be accessed without authentication/authorization, only relevant if `security.anonymousAccess` is set to true, optional
@@ -215,7 +225,7 @@ To run it locally follow these steps:
 1. Create and activate a local python virtualenv
 2. Install dependencies: `pip install -r requirements.txt`
 3. Setup a local kubernetes cluster, e.g. with k3d: `k3d cluster create`
-4. Apply the CRDs in your local cluster: `kubectl apply -f helm/hybrid-cloud-object-storage-operator/crds/`
+4. Apply the CRDs in your local cluster: `kubectl apply -f helm/hybrid-cloud-object-storage-operator-crds/templates/`
 5. If you want to deploy to azure: Either have the azure cli installed and configured with an active login or export the following environment variables: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
 6. Adapt the `config.yaml` to suit your needs
 7. Run `kopf run main.py -A`

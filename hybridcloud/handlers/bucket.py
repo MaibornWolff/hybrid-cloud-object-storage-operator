@@ -4,6 +4,7 @@ from ..config import config_get
 from ..util.reconcile_helpers import ignore_control_label_change, process_action_label
 from ..util import k8s
 from ..util.constants import BACKOFF
+from ..util.exceptions import DeletionWithBackupEnabledException
 
 
 if config_get("handler_on_resume", default=False):
@@ -59,7 +60,13 @@ def bucket_delete(spec, status, name, namespace, logger, **kwargs):
     backend = bucket_backend(backend_name, logger)
     if backend.bucket_exists(namespace, name):
         logger.info("Deleting bucket")
-        backend.delete_bucket(namespace, name)
+        try:
+            backend.delete_bucket(namespace, name)
+        except DeletionWithBackupEnabledException as e:
+            reason = str(e)
+            _status(name, namespace, status, "failed", f"Deletion failed: {reason}")
+            raise kopf.TemporaryError(reason)
+            
     else:
         logger.info("Bucket does not exist. Not doing anything")
     k8s.delete_secret(namespace, spec["credentialsSecret"])

@@ -6,9 +6,11 @@ from azure.mgmt.storage.models import StorageAccountCreateParameters, StorageAcc
     StorageAccountCheckNameAvailabilityParameters, StorageAccountRegenerateKeyParameters, \
     DeleteRetentionPolicy, RestorePolicyProperties, ChangeFeed, LocalUser, PermissionScope, SshPublicKey
 from azure.mgmt.resource.locks.models import ManagementLockObject
-from ..util.azure import azure_client_storage, azure_client_locks
+from azure.mgmt.dataprotection.models import BackupInstanceResource, BackupInstance, PolicyInfo, Datasource
+from ..util.azure import azure_client_storage, azure_client_locks, azure_backup_client
 from ..config import config_get
 from ..util.reconcile_helpers import field_from_spec
+from ..util.exceptions import DeletionWithBackupEnabledException
 
 TAGS_PREFIX = "hybridcloud-object-storage-operator"
 HTTP_METHODS = ["DELETE", "GET", "HEAD", "MERGE", "OPTIONS", "PATCH", "POST", "PUT"]
@@ -36,6 +38,7 @@ class AzureBlobBackend:
         self._logger = logger
         self._storage_client = azure_client_storage()
         self._lock_client = azure_client_locks()
+        self._backup_client = azure_backup_client()
         self._subscription_id = _backend_config("subscription_id", fail_if_missing=True)
         self._location = _backend_config("location", fail_if_missing=True)
         self._resource_group = _backend_config("resource_group", fail_if_missing=True)
@@ -76,6 +79,21 @@ class AzureBlobBackend:
         if sftp_enabled and versioning:
             return (False, "SFTP and Versioning options cannot be both enabled")
 
+        backup_enabled = field_from_spec(spec, "backup.enabled", default=_backend_config("parameters.backup.enabled", default=False))
+        
+        if backup_enabled:
+            vault_name = _backend_config("backup.vault_name", default=None)
+            policy_name = _backend_config("backup.policy_name", default=None)
+
+            if vault_name is None or policy_name is None:
+                return (False, "Backup is requested for this bucket but has not been configured for this backend in the operator configuration")
+        else:
+            backup_lock = self._get_backup_lock(bucket_name)
+            
+            # Check if backup was enabled before
+            if backup_lock is not None:
+                return (False, "Backup was disabled, but has been enabled before. Disable Azure Backup for the storage account manually before deletion.")
+
         return (True, "")
 
     def bucket_exists(self, namespace, name):
@@ -93,6 +111,8 @@ class AzureBlobBackend:
         tags = _calc_tags(namespace, name)
         sftp_enabled = field_from_spec(spec, "sftp.enabled", default=_backend_config("parameters.sftp.enabled",
                                                                                      default=False))
+        backup_enabled = field_from_spec(spec, "backup.enabled", default=_backend_config("parameters.backup.enabled", default=False))
+
         try:
             storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
         except:
@@ -184,6 +204,37 @@ class AzureBlobBackend:
                 if existing_username not in users_from_spec:
                     self._storage_client.local_users.delete(self._resource_group, bucket_name, existing_username)
 
+        if backup_enabled:
+            storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
+
+            vault_name = _backend_config("backup.vault_name", fail_if_missing=True)
+            policy_name = _backend_config("backup.policy_name", fail_if_missing=True)
+
+            policy_id = f"/subscriptions/{self._subscription_id}/resourceGroups/{self._resource_group}/providers/Microsoft.DataProtection/backupVaults/{vault_name}/backupPolicies/{policy_name}"
+
+            backup_properties = BackupInstanceResource(
+                properties=BackupInstance(
+                    policy_info=PolicyInfo(
+                        policy_id=policy_id
+                    ),
+                    data_source_info=Datasource(
+                        datasource_type="Microsoft.Storage/storageAccounts/blobServices",
+                        resource_id=storage_account.id,
+                        resource_name=storage_account.name,
+                        resource_type="Microsoft.Storage/storageAccounts",
+                        resource_location=self._location,
+                    ),
+                    object_type="BackupInstance",
+                )
+            )
+
+            self._backup_client.backup_instances.begin_create_or_update(
+                resource_group_name=self._resource_group,
+                vault_name=vault_name,
+                backup_instance_name=bucket_name,
+                parameters=backup_properties
+            ).result()
+
         # Credentials
         for key in self._storage_client.storage_accounts.list_keys(self._resource_group, bucket_name).keys:
             if key.key_name == "key1":
@@ -203,6 +254,11 @@ class AzureBlobBackend:
             tags = _calc_tags(namespace, name, {"marked-for-deletion": "yes"})
             self._storage_client.storage_accounts.update(self._resource_group, bucket_name, parameters=StorageAccountUpdateParameters(tags=tags))
         else:
+            backup_lock = self._get_backup_lock(bucket_name)
+
+            if backup_lock is not None:
+                raise DeletionWithBackupEnabledException(f"Failed to delete storage account {bucket_name}. Disable Azure Backup for the storage account manually before deletion.")
+
             self._storage_client.storage_accounts.delete(self._resource_group, bucket_name)
 
     def reset_credentials(self, namespace, name):
@@ -239,6 +295,19 @@ class AzureBlobBackend:
             ip_rules=ip_rules,
             default_action="Allow" if public_access else "Deny"
         )
+
+    def _get_backup_lock(self, bucket_name):
+        try:
+            return self._lock_client.management_locks.get_at_resource_level(
+                lock_name="AzureBackupLock-DoNotDelete",
+                resource_name=bucket_name,
+                resource_type="storageAccounts",
+                resource_provider_namespace="Microsoft.Storage",
+                resource_group_name=self._resource_group,
+                parent_resource_path=""
+                )
+        except:
+            return None
 
 
 def _map_cors_rules(cors):
