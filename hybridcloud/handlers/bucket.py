@@ -20,11 +20,7 @@ def bucket_handler(body, spec, status, meta, labels, name, namespace, diff, logg
         logger.debug("Only control labels removed. Nothing to do.")
         return
 
-    if status and "backend" in status:
-        backend_name = status["backend"]
-    else:
-        backend_name = spec.get("backend", config_get("backend", fail_if_missing=True))
-    backend = bucket_backend(backend_name, logger)
+    backend, backend_name = _get_backend(status, spec, logger)
 
     valid, reason = backend.bucket_spec_valid(namespace, name, spec)
     if not valid:
@@ -52,12 +48,9 @@ def bucket_handler(body, spec, status, meta, labels, name, namespace, diff, logg
 
 
 @kopf.on.delete(*k8s.ObjectStorageBucket.kopf_on(), backoff=BACKOFF)
-def bucket_delete(spec, status, name, namespace, logger, **kwargs):
-    if status and "backend" in status:
-        backend_name = status["backend"]
-    else:
-        backend_name = spec.get("backend", config_get("backend", fail_if_missing=True))
-    backend = bucket_backend(backend_name, logger)
+def bucket_delete(spec, status, name, namespace, logger, **_):
+    backend, _ = _get_backend(status, spec, logger)
+
     if backend.bucket_exists(namespace, name):
         logger.info("Deleting bucket")
         try:
@@ -71,6 +64,21 @@ def bucket_delete(spec, status, name, namespace, logger, **kwargs):
         logger.info("Bucket does not exist. Not doing anything")
     k8s.delete_secret(namespace, spec["credentialsSecret"])
 
+@kopf.on.validate(*k8s.ObjectStorageBucket.kopf_on())
+def validate_object_storage_spec(namespace, name, spec, status, logger, **_):
+    backend, _ = _get_backend(status, spec, logger)
+    valid, reason = backend.bucket_spec_valid(namespace, name, spec)
+
+    if not valid:
+       raise kopf.AdmissionError(reason)
+
+
+def _get_backend(status, spec, logger):
+    if status and "backend" in status:
+        backend_name = status["backend"]
+    else:
+        backend_name = spec.get("backend", config_get("backend", fail_if_missing=True))
+    return bucket_backend(backend_name, logger), backend_name
 
 def _status(name, namespace, status_obj, status, reason=None, backend=None):
     if status_obj:

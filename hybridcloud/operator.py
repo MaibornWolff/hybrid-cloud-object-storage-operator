@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import random
 import kopf
 from . import config
@@ -33,6 +34,10 @@ def configure(settings: kopf.OperatorSettings, **_):
     settings.watching.connect_timeout = 60
     settings.watching.client_timeout = 120
     settings.networking.request_timeout = 120
+    settings.admission.managed = 'auto.kopf.dev'
+
+    if os.environ.get('ENVIRONMENT') is None:
+        settings.admission.server = kopf.WebhookK3dServer(port=54321)
 
 
 # Check config to abort early in case of problem
