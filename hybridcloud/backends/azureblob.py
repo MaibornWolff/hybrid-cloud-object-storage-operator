@@ -245,6 +245,22 @@ class AzureBlobBackend:
                 management_policy_name="default",
                 properties=lifecycle_policy
             )
+        else:
+            try:
+                # The following call will yield a ResourceNotFoundError iff the policy does not exist,
+                # hence we will not try to delete it
+                self._storage_client.management_policies.get(
+                    resource_group_name=self._resource_group,
+                    account_name=storage_account.name,
+                    management_policy_name="default",
+                )
+                self._storage_client.management_policies.delete(
+                    resource_group_name=self._resource_group,
+                    account_name=storage_account.name,
+                    management_policy_name="default",
+                )
+            except ResourceNotFoundError:
+                pass
 
         # Credentials
         for key in self._storage_client.storage_accounts.list_keys(self._resource_group, bucket_name).keys:
