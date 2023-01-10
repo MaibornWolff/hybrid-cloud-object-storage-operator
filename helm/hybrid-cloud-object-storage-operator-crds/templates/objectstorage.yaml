@@ -110,6 +110,8 @@ spec:
                       items:
                         type: object
                         properties:
+                          name:
+                            type: string
                           blobPrefix:
                             type: string
                           deleteDaysAfterModification:

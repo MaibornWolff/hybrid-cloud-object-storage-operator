@@ -328,7 +328,11 @@ class AzureBlobBackend:
         if len(spec_lifecycle_rules) == 0:
             return None
         for index, rule in enumerate(spec_lifecycle_rules):
-            lifecycle_rules.append(ManagementPolicyRule(name=f"rule-{index}",
+            if "name" in rule:
+                rule_name = rule["name"]
+            else:
+                rule_name = f"rule-{index}"
+            lifecycle_rules.append(ManagementPolicyRule(name=rule_name,
                                                         type=RuleType.LIFECYCLE,
                                                         definition=ManagementPolicyDefinition(
                                                             actions=ManagementPolicyAction(
