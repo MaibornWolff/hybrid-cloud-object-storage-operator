@@ -194,8 +194,8 @@ spec:
     enabled: false  # Override the default backup strategy configured in the global operator config
   lifecycle:  # Define rules which determine the lifecycle of blob resources
     rules:
-      - blobPrefix: foobar
-        deleteDaysAfterModification: 30
+      - blobPrefix: foobar  # Prefix of blob resources to apply rule to, required
+        deleteDaysAfterModification: 30  # Delete blob resources after number of days after last modification, required
   containers:  # Only relevant for azure, list of containers to create in the bucket, for azure at least one is required, containers not on the list will be removed from the storage account, including their data
     - name: assets  # Name of the container, required
       anonymousAccess: false  # If set to true objects in the container can be accessed without authentication/authorization, only relevant if `security.anonymousAccess` is set to true, optional
