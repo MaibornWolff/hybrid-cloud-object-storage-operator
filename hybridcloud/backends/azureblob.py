@@ -17,6 +17,7 @@ from ..util.exceptions import DeletionWithBackupEnabledException
 TAGS_PREFIX = "hybridcloud-object-storage-operator"
 HTTP_METHODS = ["DELETE", "GET", "HEAD", "MERGE", "OPTIONS", "PATCH", "POST", "PUT"]
 SFTP_USER_PERMISSIONS = ["READ", "WRITE", "DELETE", "LIST", "CREATE"]
+LIFECYCLE_MANAGEMENT_POLICY_NAME = "default"
 
 
 def _backend_config(key, default=None, fail_if_missing=False):
@@ -242,7 +243,7 @@ class AzureBlobBackend:
             self._storage_client.management_policies.create_or_update(
                 resource_group_name=self._resource_group,
                 account_name=storage_account.name,
-                management_policy_name="default",
+                management_policy_name=LIFECYCLE_MANAGEMENT_POLICY_NAME,
                 properties=lifecycle_policy
             )
         else:
@@ -252,12 +253,12 @@ class AzureBlobBackend:
                 self._storage_client.management_policies.get(
                     resource_group_name=self._resource_group,
                     account_name=storage_account.name,
-                    management_policy_name="default",
+                    management_policy_name=LIFECYCLE_MANAGEMENT_POLICY_NAME,
                 )
                 self._storage_client.management_policies.delete(
                     resource_group_name=self._resource_group,
                     account_name=storage_account.name,
-                    management_policy_name="default",
+                    management_policy_name=LIFECYCLE_MANAGEMENT_POLICY_NAME,
                 )
             except ResourceNotFoundError:
                 pass
@@ -328,10 +329,7 @@ class AzureBlobBackend:
         if len(spec_lifecycle_rules) == 0:
             return None
         for index, rule in enumerate(spec_lifecycle_rules):
-            if "name" in rule:
-                rule_name = rule["name"]
-            else:
-                rule_name = f"rule-{index}"
+            rule_name = rule.get("name", f"rule-{index}")
             lifecycle_rules.append(ManagementPolicyRule(name=rule_name,
                                                         type=RuleType.LIFECYCLE,
                                                         definition=ManagementPolicyDefinition(
