@@ -102,6 +102,23 @@ spec:
                   properties:
                     enabled:
                       type: boolean
+                lifecycle:
+                  type: object
+                  properties:
+                    rules:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          blobPrefix:
+                            type: string
+                          deleteDaysAfterModification:
+                            type: number
+                        required:
+                          - blobPrefix
+                          - deleteDaysAfterModification
                 containers:
                   type: array
                   items:

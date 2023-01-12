@@ -4,7 +4,9 @@ from azure.mgmt.storage.models import StorageAccountCreateParameters, StorageAcc
     BlobServiceProperties, \
     CorsRules, CorsRule, NetworkRuleSet, IPRule, VirtualNetworkRule, BlobContainer, \
     StorageAccountCheckNameAvailabilityParameters, StorageAccountRegenerateKeyParameters, \
-    DeleteRetentionPolicy, RestorePolicyProperties, ChangeFeed, LocalUser, PermissionScope, SshPublicKey
+    DeleteRetentionPolicy, RestorePolicyProperties, ChangeFeed, LocalUser, PermissionScope, SshPublicKey, \
+    ManagementPolicy, ManagementPolicySchema, ManagementPolicyRule, RuleType, ManagementPolicyDefinition, \
+    ManagementPolicyAction, ManagementPolicyFilter, ManagementPolicyBaseBlob, DateAfterModification
 from azure.mgmt.resource.locks.models import ManagementLockObject
 from azure.mgmt.dataprotection.models import BackupInstanceResource, BackupInstance, PolicyInfo, Datasource
 from ..util.azure import azure_client_storage, azure_client_locks, azure_backup_client
@@ -15,6 +17,7 @@ from ..util.exceptions import DeletionWithBackupEnabledException
 TAGS_PREFIX = "hybridcloud-object-storage-operator"
 HTTP_METHODS = ["DELETE", "GET", "HEAD", "MERGE", "OPTIONS", "PATCH", "POST", "PUT"]
 SFTP_USER_PERMISSIONS = ["READ", "WRITE", "DELETE", "LIST", "CREATE"]
+LIFECYCLE_MANAGEMENT_POLICY_NAME = "default"
 
 
 def _backend_config(key, default=None, fail_if_missing=False):
@@ -204,9 +207,9 @@ class AzureBlobBackend:
                 if existing_username not in users_from_spec:
                     self._storage_client.local_users.delete(self._resource_group, bucket_name, existing_username)
 
-        if backup_enabled:
-            storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
+        storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
 
+        if backup_enabled:
             vault_name = _backend_config("backup.vault_name", fail_if_missing=True)
             policy_name = _backend_config("backup.policy_name", fail_if_missing=True)
 
@@ -235,6 +238,31 @@ class AzureBlobBackend:
                 parameters=backup_properties
             ).result()
 
+        lifecycle_policy = self._map_lifecycle_policy(spec)
+        if lifecycle_policy is not None:
+            self._storage_client.management_policies.create_or_update(
+                resource_group_name=self._resource_group,
+                account_name=storage_account.name,
+                management_policy_name=LIFECYCLE_MANAGEMENT_POLICY_NAME,
+                properties=lifecycle_policy
+            )
+        else:
+            try:
+                # The following call will yield a ResourceNotFoundError iff the policy does not exist,
+                # hence we will not try to delete it
+                self._storage_client.management_policies.get(
+                    resource_group_name=self._resource_group,
+                    account_name=storage_account.name,
+                    management_policy_name=LIFECYCLE_MANAGEMENT_POLICY_NAME,
+                )
+                self._storage_client.management_policies.delete(
+                    resource_group_name=self._resource_group,
+                    account_name=storage_account.name,
+                    management_policy_name=LIFECYCLE_MANAGEMENT_POLICY_NAME,
+                )
+            except ResourceNotFoundError:
+                pass
+
         # Credentials
         for key in self._storage_client.storage_accounts.list_keys(self._resource_group, bucket_name).keys:
             if key.key_name == "key1":
@@ -245,7 +273,6 @@ class AzureBlobBackend:
                     "connection_string": f"DefaultEndpointsProtocol=https;AccountName={bucket_name};AccountKey={key.value};EndpointSuffix=core.windows.net",
                 }
         raise Exception("Could not find keys in azure")
-
 
     def delete_bucket(self, namespace, name):
         bucket_name = _calc_name(namespace, name)
@@ -295,6 +322,27 @@ class AzureBlobBackend:
             ip_rules=ip_rules,
             default_action="Allow" if public_access else "Deny"
         )
+
+    def _map_lifecycle_policy(self, spec):
+        lifecycle_rules = []
+        spec_lifecycle_rules = field_from_spec(spec, "lifecycle.rules", [])
+        if len(spec_lifecycle_rules) == 0:
+            return None
+        for index, rule in enumerate(spec_lifecycle_rules):
+            rule_name = rule.get("name", f"rule-{index}")
+            lifecycle_rules.append(ManagementPolicyRule(name=rule_name,
+                                                        type=RuleType.LIFECYCLE,
+                                                        definition=ManagementPolicyDefinition(
+                                                            actions=ManagementPolicyAction(
+                                                                base_blob=ManagementPolicyBaseBlob(
+                                                                    delete=DateAfterModification(
+                                                                        days_after_modification_greater_than=rule[
+                                                                            "deleteDaysAfterModification"]))),
+                                                            filters=ManagementPolicyFilter(
+                                                                blob_types=["blockBlob"],
+                                                                prefix_match=[rule["blobPrefix"]])),
+                                                        enabled=True))
+        return ManagementPolicy(policy=ManagementPolicySchema(rules=lifecycle_rules))
 
     def _get_backup_lock(self, bucket_name):
         try:
