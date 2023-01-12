@@ -156,16 +156,29 @@ class AzureBlobBackend:
             self._lock_client.management_locks.create_or_update_at_resource_level(self._resource_group, "Microsoft.Storage", "", "storageAccounts", bucket_name, "DoNotDeleteLock", parameters=ManagementLockObject(level="CanNotDelete", notes="Protection from accidental deletion"))
 
         # Create blob services
-        retention, changefeed = _map_retention(spec)
-        versioning = field_from_spec(spec, "dataRetention.versioning.enabled", default=_backend_config("parameters.versioning.enabled", default=False))
-        parameters = BlobServiceProperties(
-            cors=_map_cors_rules(spec.get("security", dict()).get("cors")),
-            is_versioning_enabled=versioning,
-            delete_retention_policy=retention,
-            container_delete_retention_policy=retention,
-            restore_policy=None,
-            change_feed=changefeed,
-        )
+        cors_rules = _map_cors_rules(spec.get("security", dict()).get("cors"))
+        retention = _map_retention(spec)
+        if backup_enabled:
+            # If backup is enabled,
+            # is_versioning_enabled, delete_retention_policy and change_feed are not allowed to be overwritten.
+            # container_delete_retention_policy would work, but setting it makes no sense due to consistency reasons.
+            parameters = BlobServiceProperties(
+                cors=cors_rules,
+            )
+        else:
+            versioning = field_from_spec(spec, "dataRetention.versioning.enabled",
+                                         default=_backend_config("parameters.versioning.enabled", default=False))
+            change_feed = ChangeFeed(
+                enabled=False,
+                retention_in_days=None,
+            )
+            parameters = BlobServiceProperties(
+                cors=cors_rules,
+                is_versioning_enabled=versioning,
+                delete_retention_policy=retention,
+                container_delete_retention_policy=retention,
+                change_feed=change_feed,
+            )
         self._storage_client.blob_services.set_service_properties(self._resource_group, bucket_name, parameters=parameters)
 
         # Create containers
@@ -380,11 +393,7 @@ def _map_retention(spec):
         enabled=enabled,
         days=days if enabled else None,
     )
-    changefeed = ChangeFeed(
-        enabled=False,
-        retention_in_days=None,
-    )
-    return retention, changefeed
+    return retention
 
 
 def _calc_tags(namespace, name, extra_tags={}):

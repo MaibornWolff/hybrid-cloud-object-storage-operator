@@ -184,7 +184,7 @@ spec:
         allowedHeaders:  # List of HTTP headers to allow in the response, wildcard "*" is allowed, required
           - "*"
         maxAgeInSeconds: 200  # Time in seconds the bucket should cache Preflight-OPTIONS requests, required
-  dataRetention:  # Settings related to data retention, optional
+  dataRetention:  # Settings related to data retention, optional; will not be respected if backup.enabled = true
     versioning:  # Settings related to versioning, optional
       enabled: false  # Enable versioning in storage account, optional
     deleteRetention:  # Settings related to delete retention, optional
