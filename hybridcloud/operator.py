@@ -34,10 +34,9 @@ def configure(settings: kopf.OperatorSettings, **_):
     settings.watching.connect_timeout = 60
     settings.watching.client_timeout = 120
     settings.networking.request_timeout = 120
-    settings.admission.managed = 'auto.kopf.dev'
+    settings.admission.managed = 'hybridcloud.maibornwolff.de'
 
-    if os.environ.get('ENVIRONMENT') is None:
-        settings.admission.server = kopf.WebhookK3dServer(port=54321)
+    settings.admission.server = kopf.WebhookAutoServer()
 
 
 # Check config to abort early in case of problem

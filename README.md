@@ -228,7 +228,7 @@ The operator is implemented in Python using the [Kopf](https://github.com/nolar/
 To run it locally follow these steps:
 
 1. Create and activate a local python virtualenv
-2. Install dependencies: `pip install -r requirements.txt`. During development the additional command `pip install 'kopf[dev]'` is required (but not for production, so it is not part of requirements.txt).
+2. Install dependencies: `pip install -r requirements.txt`
 3. Setup a local kubernetes cluster, e.g. with k3d: `k3d cluster create`
 4. Apply the CRDs in your local cluster: `kubectl apply -f helm/hybrid-cloud-object-storage-operator-crds/templates/`
 5. If you want to deploy to azure: Either have the azure cli installed and configured with an active login or export the following environment variables: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
