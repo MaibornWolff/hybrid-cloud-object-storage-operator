@@ -228,23 +228,6 @@ class AzureBlobBackend:
 
             policy_id = f"/subscriptions/{self._subscription_id}/resourceGroups/{self._resource_group}/providers/Microsoft.DataProtection/backupVaults/{vault_name}/backupPolicies/{policy_name}"
 
-            backup_properties = BackupInstanceResource(
-                properties=BackupInstance(
-                    friendly_name=bucket_name,
-                    policy_info=PolicyInfo(
-                        policy_id=policy_id
-                    ),
-                    data_source_info=Datasource(
-                        datasource_type="Microsoft.Storage/storageAccounts",
-                        resource_id=storage_account.id,
-                        resource_name=storage_account.name,
-                        resource_type="Microsoft.Storage/storageAccounts",
-                        resource_location=self._location,
-                    ),
-                    object_type="BackupInstance",
-                )
-            )
-
             self._logger.info("vault_name: %s", vault_name)
             self._logger.info("policy_name: %s", policy_name)
             self._logger.info("policy_id: %s", policy_id)
@@ -259,8 +242,35 @@ class AzureBlobBackend:
                 resource_group_name=self._resource_group,
                 vault_name=vault_name,
                 backup_instance_name=bucket_name,
-                parameters=backup_properties
-            ).result()
+                parameters={
+                    "properties": {
+                        "dataSourceInfo": {
+                            "datasourceType": "Microsoft.Storage/storageAccounts",
+                            "objectType": "Datasource",
+                            "resourceID": storage_account.id,
+                            "resourceLocation": "",
+                            "resourceName": storage_account.name,
+                            "resourceType": "Microsoft.Storage/storageAccounts",
+                            "resourceUri": "",
+                        },
+                        "friendlyName": bucket_name,
+                        "objectType": "BackupInstance",
+                        "policyInfo": {
+                            "policyId": policy_id,
+                            "policyParameters": {
+                                "dataStoreParametersList": [
+                                    {
+                                        "dataStoreType": "OperationalStore",
+                                        "objectType": "AzureOperationalStoreParameters",
+                                        "resourceGroupId": f"/subscriptions/{self._subscription_id}/resourceGroups/{self._resource_group}",
+                                    }
+                                ]
+                            },
+                        },
+                        "validationType": "ShallowValidation",
+                    },
+                    "tags": {"key1": "val1"},
+                }).result()
 
         lifecycle_policy = self._map_lifecycle_policy(spec)
         if lifecycle_policy is not None:
