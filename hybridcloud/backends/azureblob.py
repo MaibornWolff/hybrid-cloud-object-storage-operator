@@ -244,7 +244,7 @@ class AzureBlobBackend:
                 parameters={
                     "properties": {
                         "dataSourceInfo": {
-                            "datasourceType": "Microsoft.Storage/storageAccounts",
+                            "datasourceType": "Microsoft.Storage/storageAccounts/blobServices",
                             "objectType": "Datasource",
                             "resourceID": storage_account.id,
                             "resourceLocation": "",
