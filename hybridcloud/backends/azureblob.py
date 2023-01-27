@@ -244,6 +244,16 @@ class AzureBlobBackend:
                 )
             )
 
+            self._logger.info("vault_name: %s", vault_name)
+            self._logger.info("policy_name: %s", policy_name)
+            self._logger.info("policy_id: %s", policy_id)
+            self._logger.info("storage_account.id: %s", storage_account.id)
+            self._logger.info("storage_account.name: %s", storage_account.name)
+            self._logger.info("self._location: %s", self._location)
+            self._logger.info("self._resource_group: %s", self._resource_group)
+            self._logger.info("bucket_name: %s", bucket_name)
+            self._logger.info("backup_properties: %s", ', '.join("%s: %s" % item for item in vars(backup_properties).items()))
+
             self._backup_client.backup_instances.begin_create_or_update(
                 resource_group_name=self._resource_group,
                 vault_name=vault_name,
