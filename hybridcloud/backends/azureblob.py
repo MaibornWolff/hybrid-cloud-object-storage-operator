@@ -250,7 +250,7 @@ class AzureBlobBackend:
                             "resourceLocation": self._location,
                             "resourceName": storage_account.name,
                             "resourceType": "Microsoft.Storage/storageAccounts",
-                            "resourceUri": "",
+                            "resourceUri": ""
                         },
                         "friendlyName": bucket_name,
                         "objectType": "BackupInstance",
@@ -261,14 +261,12 @@ class AzureBlobBackend:
                                     {
                                         "dataStoreType": "OperationalStore",
                                         "objectType": "AzureOperationalStoreParameters",
-                                        "resourceGroupId": f"/subscriptions/{self._subscription_id}/resourceGroups/{self._resource_group}",
+                                        "resourceGroupId": f"/subscriptions/{self._subscription_id}/resourceGroups/{self._resource_group}"
                                     }
                                 ]
-                            },
-                        },
-                        "validationType": "ShallowValidation",
-                    },
-                    "tags": {"key1": "val1"},
+                            }
+                        }
+                    }
                 }).result()
 
         lifecycle_policy = self._map_lifecycle_policy(spec)
