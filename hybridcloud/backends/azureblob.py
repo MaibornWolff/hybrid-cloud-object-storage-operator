@@ -247,7 +247,7 @@ class AzureBlobBackend:
                             "datasourceType": "Microsoft.Storage/storageAccounts/blobServices",
                             "objectType": "Datasource",
                             "resourceID": storage_account.id,
-                            "resourceLocation": "",
+                            "resourceLocation": self._location,
                             "resourceName": storage_account.name,
                             "resourceType": "Microsoft.Storage/storageAccounts",
                             "resourceUri": "",
