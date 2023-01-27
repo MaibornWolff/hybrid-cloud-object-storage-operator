@@ -255,16 +255,7 @@ class AzureBlobBackend:
                         "friendlyName": bucket_name,
                         "objectType": "BackupInstance",
                         "policyInfo": {
-                            "policyId": policy_id,
-                            "policyParameters": {
-                                "dataStoreParametersList": [
-                                    {
-                                        "dataStoreType": "OperationalStore",
-                                        "objectType": "AzureOperationalStoreParameters",
-                                        "resourceGroupId": f"/subscriptions/{self._subscription_id}/resourceGroups/{self._resource_group}"
-                                    }
-                                ]
-                            }
+                            "policyId": policy_id
                         }
                     }
                 }).result()
