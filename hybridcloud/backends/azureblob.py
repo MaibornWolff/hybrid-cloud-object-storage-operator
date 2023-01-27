@@ -241,6 +241,7 @@ class AzureBlobBackend:
                 resource_group_name=self._resource_group,
                 vault_name=vault_name,
                 backup_instance_name=bucket_name,
+                content_type="application/json",
                 parameters={
                     "properties": {
                         "dataSourceInfo": {
