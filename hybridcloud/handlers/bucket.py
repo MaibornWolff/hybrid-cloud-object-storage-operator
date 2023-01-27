@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import kopf
 from .routing import bucket_backend
 from ..config import config_get
@@ -5,7 +7,6 @@ from ..util.reconcile_helpers import ignore_control_label_change, process_action
 from ..util import k8s
 from ..util.constants import BACKOFF
 from ..util.exceptions import DeletionWithBackupEnabledException
-
 
 if config_get("handler_on_resume", default=False):
     @kopf.on.resume(*k8s.ObjectStorageBucket.kopf_on(), backoff=BACKOFF)
@@ -81,6 +82,7 @@ def _status(name, namespace, status_obj, status, reason=None, backend=None):
         status_obj["backend"] = backend
     status_obj["deployment"] = {
         "status": status,
-        "reason": reason
+        "reason": reason,
+        "latest-update": datetime.now(tz=timezone.utc).isoformat()
     }
     k8s.patch_custom_object_status(k8s.ObjectStorageBucket, namespace, name, status_obj)
