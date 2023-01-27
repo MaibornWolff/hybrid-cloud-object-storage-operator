@@ -235,7 +235,7 @@ class AzureBlobBackend:
                         policy_id=policy_id
                     ),
                     data_source_info=Datasource(
-                        datasource_type="Microsoft.Storage/storageAccounts/blobServices",
+                        datasource_type="Microsoft.Storage/storageAccounts",
                         resource_id=storage_account.id,
                         resource_name=storage_account.name,
                         resource_type="Microsoft.Storage/storageAccounts",
