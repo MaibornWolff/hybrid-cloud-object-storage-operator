@@ -236,7 +236,6 @@ class AzureBlobBackend:
             self._logger.info("self._location: %s", self._location)
             self._logger.info("self._resource_group: %s", self._resource_group)
             self._logger.info("bucket_name: %s", bucket_name)
-            self._logger.info("backup_properties: %s", dir(backup_properties))
 
             self._backup_client.backup_instances.begin_create_or_update(
                 resource_group_name=self._resource_group,
