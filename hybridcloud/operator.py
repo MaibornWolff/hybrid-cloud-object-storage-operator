@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import random
 import kopf
 from . import config
@@ -33,6 +34,9 @@ def configure(settings: kopf.OperatorSettings, **_):
     settings.watching.connect_timeout = 60
     settings.watching.client_timeout = 120
     settings.networking.request_timeout = 120
+    settings.admission.managed = 'hybridcloud.maibornwolff.de'
+
+    settings.admission.server = kopf.WebhookAutoServer()
 
 
 # Check config to abort early in case of problem
