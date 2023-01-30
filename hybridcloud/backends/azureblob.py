@@ -230,17 +230,20 @@ class AzureBlobBackend:
 
             backup_properties = BackupInstanceResource(
                 properties=BackupInstance(
-                    policy_info=PolicyInfo(
-                        policy_id=policy_id
-                    ),
                     data_source_info=Datasource(
                         datasource_type="Microsoft.Storage/storageAccounts/blobServices",
+                        object_type="Datasource",
                         resource_id=storage_account.id,
+                        resource_location=self._location,
                         resource_name=storage_account.name,
                         resource_type="Microsoft.Storage/storageAccounts",
-                        resource_location=self._location,
+                        resource_uri=""
                     ),
+                    friendly_name=bucket_name,
                     object_type="BackupInstance",
+                    policy_info=PolicyInfo(
+                        policy_id=policy_id
+                    )
                 )
             )
 
