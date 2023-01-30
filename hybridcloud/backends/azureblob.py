@@ -246,14 +246,11 @@ class AzureBlobBackend:
                     "properties": {
                         "dataSourceInfo": {
                             "datasourceType": "Microsoft.Storage/storageAccounts/blobServices",
-                            "objectType": "Datasource",
                             "resourceID": storage_account.id,
                             "resourceLocation": self._location,
                             "resourceName": storage_account.name,
                             "resourceType": "Microsoft.Storage/storageAccounts",
-                            "resourceUri": ""
                         },
-                        "friendlyName": bucket_name,
                         "objectType": "BackupInstance",
                         "policyInfo": {
                             "policyId": policy_id
