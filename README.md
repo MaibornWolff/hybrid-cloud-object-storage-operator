@@ -1,6 +1,6 @@
-# Hybrid-cloud Object-Storage Operator
+# Hybrid Cloud Operator for Object Storage
 
-The hybrid-cloud-object-storage-operator is designed for hybrid-cloud, multi-teams kubernetes platforms to allow teams to deploy and manage their own object storages via kubernetes without cloud provider specific provisioning.
+The Hybrid Cloud Operator for Object Storage is a Kubernetes Operator that has been designed for hybrid cloud, multi-teams kubernetes platforms to allow teams to deploy and manage their own object storages via kubernetes without cloud provider specific provisioning.
 
 In classical cloud environments object storage would typically be managed by a central platform team via infrastructure automation like terraform. But this means when different teams are active on such a platform there exists a bottleneck because that central platform team must handle all requests for object storage buckets and accounts. With this operator teams in kubernetes gain the potential to manage buckets on their own. And because the operator integrates into the kubernetes API the teams have the same unified interface/API for all their deployments: Kubernetes YAMLs.
 
