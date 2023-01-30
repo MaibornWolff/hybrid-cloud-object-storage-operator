@@ -2,6 +2,16 @@ apiVersion: v1
 entries:
   hybrid-cloud-object-storage-operator:
   - apiVersion: v2
+    appVersion: 0.3.2
+    created: "2023-01-30T13:18:42.207378169Z"
+    description: A Helm chart for Kubernetes
+    digest: 909a7da5a6018fe8efe8b6c5c3bdb210dc511a39175f07c07cf167a3f3863a7f
+    name: hybrid-cloud-object-storage-operator
+    type: application
+    urls:
+    - https://MaibornWolff.github.io/hybrid-cloud-object-storage-operator/hybrid-cloud-object-storage-operator-0.3.2.tgz
+    version: 0.3.2
+  - apiVersion: v2
     appVersion: 0.3.1
     created: "2023-01-27T12:14:59.035449133Z"
     description: A Helm chart for Kubernetes
@@ -63,6 +73,16 @@ entries:
     version: 0.1.0
   hybrid-cloud-object-storage-operator-crds:
   - apiVersion: v2
+    appVersion: 0.3.2
+    created: "2023-01-30T13:18:42.207732387Z"
+    description: Installs the CRDs for the hybrid-cloud-object-storage-operator
+    digest: 21a3ff962678b5690f0ffd8bd80ce0a18fb769eca575144eee17c9ed1f3b1d66
+    name: hybrid-cloud-object-storage-operator-crds
+    type: application
+    urls:
+    - https://MaibornWolff.github.io/hybrid-cloud-object-storage-operator/hybrid-cloud-object-storage-operator-crds-0.3.2.tgz
+    version: 0.3.2
+  - apiVersion: v2
     appVersion: 0.3.1
     created: "2023-01-27T12:14:59.035855234Z"
     description: Installs the CRDs for the hybrid-cloud-object-storage-operator
@@ -92,4 +112,4 @@ entries:
     urls:
     - https://MaibornWolff.github.io/hybrid-cloud-object-storage-operator/hybrid-cloud-object-storage-operator-crds-0.2.0.tgz
     version: 0.2.0
-generated: "2023-01-27T12:14:59.034025532Z"
+generated: "2023-01-30T13:18:42.206405021Z"
