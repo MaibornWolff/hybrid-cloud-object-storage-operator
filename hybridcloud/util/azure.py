@@ -1,7 +1,7 @@
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.storage import StorageManagementClient
 from azure.mgmt.resource import ManagementLockClient
-from azure.mgmt.dataprotection import DataProtectionClient
+from azure.mgmt.dataprotection import DataProtectionMgmtClient
 from ..config import get_one_of
 
 
@@ -22,4 +22,4 @@ def azure_client_locks():
 
 
 def azure_backup_client():
-    return DataProtectionClient(_credentials(), _subscription_id())
+    return DataProtectionMgmtClient(_credentials(), _subscription_id())
