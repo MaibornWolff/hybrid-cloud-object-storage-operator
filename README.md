@@ -70,7 +70,7 @@ To test out the operator you currently need an Azure account with a service prin
 6. Check if the pod of the operator is running and healthy: `kubectl get pods -l app.kubernetes.io/name=hybrid-cloud-object-storage-operator`.
 7. Create your first bucket: `kubectl apply -f examples/azureblob.yaml`.
 8. Check in azure to see if the new storage account is created.
-9. Retrieve the credentials for the storage account: `kubectl get secretdemoteam-storage-credentials -o jsonpath="{.data.key}" | base64 -d`
+9. Retrieve the credentials for the storage account: `kubectl get secret demoteam-storage-credentials -o jsonpath="{.data.key}" | base64 -d`
 10. After you are finished, delete the bucket again: `kubectl delete -f examples/azureblob.yaml`
 
 ## Operations Guide

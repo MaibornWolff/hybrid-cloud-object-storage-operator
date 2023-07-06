@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-
 import kopf
 from .routing import bucket_backend
 from ..config import config_get
