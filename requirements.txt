@@ -1,7 +1,7 @@
-kubernetes==26.1.0
-kopf==1.36.1
-azure-identity==1.13.0
+kubernetes==28.1.0
+kopf==1.36.2
+azure-identity==1.14.1
 azure-mgmt-resource==23.0.1
-azure-mgmt-storage==21.0.0
-azure-mgmt-dataprotection==1.1.0
-pyyaml==6.0
+azure-mgmt-storage==21.1.0
+azure-mgmt-dataprotection==1.2.0
+pyyaml==6.0.1
