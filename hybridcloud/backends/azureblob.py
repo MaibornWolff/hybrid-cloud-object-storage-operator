@@ -143,6 +143,7 @@ class AzureBlobBackend:
         else:
             # Update storage account
             parameters = StorageAccountUpdateParameters(
+                sku=sku,
                 tags=tags,
                 public_network_access="Enabled",  # Disabled means only via endpoint connection
                 network_rule_set=network_rules,
