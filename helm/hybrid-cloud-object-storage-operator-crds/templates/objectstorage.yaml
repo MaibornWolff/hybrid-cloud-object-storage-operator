@@ -102,6 +102,11 @@ spec:
                   properties:
                     enabled:
                       type: boolean
+                sku:
+                  type: object
+                  properties:
+                    name: 
+                      type: string
                 lifecycle:
                   type: object
                   properties:
@@ -130,6 +135,7 @@ spec:
                         type: boolean
                     required:
                       - name
+
                 sftp:
                   type: object
                   properties:

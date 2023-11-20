@@ -192,6 +192,8 @@ spec:
       retentionPeriodInDays: 1  # Days to keep deleted data, optional
   backup:
     enabled: false  # Override the default backup strategy configured in the global operator config
+  sku:
+    name: Standard_LRS  # Name of the SKU to use for the storage accounts, optional
   lifecycle:  # Define rules which determine the lifecycle of blob resources, optional
     rules:
       - name: foobar-rule  # Lifecycle rule name, optional

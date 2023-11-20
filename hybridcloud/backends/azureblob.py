@@ -108,7 +108,7 @@ class AzureBlobBackend:
 
     def create_or_update_bucket(self, namespace, name, spec):
         bucket_name = _calc_name(namespace, name)
-        sku = Sku(name=_backend_config("sku.name", default="Standard_LRS"))
+        sku = Sku(name=field_from_spec(spec, "sku.name", default=_backend_config("sku.name", default="Standard_LRS")))
         public_access = field_from_spec(spec, "network.publicAccess", default=_backend_config("parameters.network.public_access", default=False))
         network_rules = self._map_network_rules(spec, public_access)
         tags = _calc_tags(namespace, name)
