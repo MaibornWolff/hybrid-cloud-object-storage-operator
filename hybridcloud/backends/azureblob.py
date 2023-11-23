@@ -494,16 +494,18 @@ def _get_user_authorized_keys(user):
 
 
 def _determine_sku(size_spec):
-    sku = config_get("backends.azureblob.sku.name")
-    if sku:
-        return Sku(name=sku)
-
+    sku_name = _backend_config("sku.name")
     size_class = size_spec.get("class")
-    default_class = config_get("backends.azureblob.default_class")
-    classes = config_get("backends.azureblob.classes", default=[])
+    default_class = _backend_config("default_class")
+    classes = _backend_config("classes", default=[])
 
-    selected_class = classes[default_class]
+    if sku_name:
+        return Sku(name=sku_name)
+    if not size_class and not default_class:
+        return Sku(name="Standard_LRS")
     if size_class and size_class in classes:
-        selected_class = classes[size_class]
-
-    return Sku(name=selected_class["name"])
+        return Sku(name=classes[size_class]["name"])
+    if default_class in classes:
+        return Sku(name=classes[default_class]["name"])
+    
+    raise Exception(f"Default class '{default_class}' not found in classes.")
