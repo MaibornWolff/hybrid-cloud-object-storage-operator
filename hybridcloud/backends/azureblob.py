@@ -108,7 +108,7 @@ class AzureBlobBackend:
 
     def create_or_update_bucket(self, namespace, name, spec):
         bucket_name = _calc_name(namespace, name)
-        sku = Sku(name=field_from_spec(spec, "sku.name", default=_backend_config("sku.name", default="Standard_LRS")))
+        sku = _determine_sku(spec.get("size", {}))
         public_access = field_from_spec(spec, "network.publicAccess", default=_backend_config("parameters.network.public_access", default=False))
         network_rules = self._map_network_rules(spec, public_access)
         tags = _calc_tags(namespace, name)
@@ -491,3 +491,19 @@ def _get_user_authorized_keys(user):
         ssh_public_key = SshPublicKey(description=user_key_description, key=user_public_ssh_key)
         user_authorized_keys.append(ssh_public_key)
     return user_authorized_keys
+
+
+def _determine_sku(size_spec):
+    sku = config_get("backends.azureblob.sku.name")
+    if sku:
+        return Sku(name=sku)
+
+    size_class = size_spec.get("class")
+    default_class = config_get("backends.azureblob.default_class")
+    classes = config_get("backends.azureblob.classes", default=[])
+
+    selected_class = classes[default_class]
+    if size_class and size_class in classes:
+        selected_class = classes[size_class]
+
+    return Sku(name=selected_class["name"])
