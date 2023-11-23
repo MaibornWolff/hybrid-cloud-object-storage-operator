@@ -102,6 +102,11 @@ spec:
                   properties:
                     enabled:
                       type: boolean
+                size:
+                  type: object
+                  properties:
+                    class: 
+                      type: string
                 lifecycle:
                   type: object
                   properties:

@@ -108,7 +108,7 @@ class AzureBlobBackend:
 
     def create_or_update_bucket(self, namespace, name, spec):
         bucket_name = _calc_name(namespace, name)
-        sku = Sku(name=_backend_config("sku.name", default="Standard_LRS"))
+        sku = _determine_sku(spec.get("size", {}))
         public_access = field_from_spec(spec, "network.publicAccess", default=_backend_config("parameters.network.public_access", default=False))
         network_rules = self._map_network_rules(spec, public_access)
         tags = _calc_tags(namespace, name)
@@ -143,6 +143,7 @@ class AzureBlobBackend:
         else:
             # Update storage account
             parameters = StorageAccountUpdateParameters(
+                sku=sku,
                 tags=tags,
                 public_network_access="Enabled",  # Disabled means only via endpoint connection
                 network_rule_set=network_rules,
@@ -490,3 +491,21 @@ def _get_user_authorized_keys(user):
         ssh_public_key = SshPublicKey(description=user_key_description, key=user_public_ssh_key)
         user_authorized_keys.append(ssh_public_key)
     return user_authorized_keys
+
+
+def _determine_sku(size_spec):
+    sku_name = _backend_config("sku.name")
+    size_class = size_spec.get("class")
+    default_class = _backend_config("default_class")
+    classes = _backend_config("classes", default=[])
+
+    if sku_name:
+        return Sku(name=sku_name)
+    if not size_class and not default_class:
+        return Sku(name="Standard_LRS")
+    if size_class and size_class in classes:
+        return Sku(name=classes[size_class]["name"])
+    if default_class in classes:
+        return Sku(name=classes[default_class]["name"])
+    
+    raise Exception(f"Default class '{default_class}' not found in classes.")

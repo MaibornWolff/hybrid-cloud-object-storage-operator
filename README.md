@@ -95,7 +95,13 @@ backends:  # Configuration for the different backends. Required fields are only 
     kind: StorageV2  # Kind to use for the storage accounts, optional
     access_tier: Hot  # Access tier for the storage accounts, can be Hot or Cold, optional
     sku:
-      name: "Standard_LRS"  # Name of the SKU to use for the storage accounts
+      name: "Standard_LRS"  # Name of the SKU to use for the storage accounts. If this is set, the settings of classes are ignored
+    classes:  # List of size classes the user can select from, optional
+      lrs:  # Name of the class, required
+        name: "Standard_LRS"  # Name of the SKU in Azure, required
+      grs:
+        name: "Standard_GRS"
+    default_class: lrs  # Name of the class to use as default if the user-provided one is invalid or not available, required if classes should be usable
     allow_anonymous_access: false  # If set to true users can configure their storage accouts to allow anonymous access to blobs
     network:
       allow_azure_services: true  # If enabled a firewall rule will be added so that azure services can access the storage account, optional
@@ -192,6 +198,8 @@ spec:
       retentionPeriodInDays: 1  # Days to keep deleted data, optional
   backup:
     enabled: false  # Override the default backup strategy configured in the global operator config
+  size:
+    class: lrs  # Resource class to use, available classes are specified by the operator admin. If sku is specified in the operator config, this setting is ignored. optional
   lifecycle:  # Define rules which determine the lifecycle of blob resources, optional
     rules:
       - name: foobar-rule  # Lifecycle rule name, optional
