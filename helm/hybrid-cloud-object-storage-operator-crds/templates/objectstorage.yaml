@@ -102,6 +102,8 @@ spec:
                   properties:
                     enabled:
                       type: boolean
+                    class:
+                      type: string
                 size:
                   type: object
                   properties:

@@ -108,9 +108,15 @@ backends:  # Configuration for the different backends. Required fields are only 
       vnets:  # List of vnets the storage account should allow access from. Each vnet listed here must have Microsoft.Storage added to the ServiceEndpoints collection of the subnet, optional
         - vnet: foobar-vnet  # Name of the virtual network, required
           subnet: default  # Name of the subnet, required
-    backup: # Configuration for use of Azure Backup Services. vault_name and policy_id are mandatory, if you want to use Azure Backup
+    backup: # Configuration for use of Azure Backup Services. vault_name and either policy_name or default_class with classes are mandatory, if you want to use Azure Backup
       vault_name: foobar-vault  # The name of the existing backup vault, make sure the Storage Account has the Role Assignment "Storage Account Backup Contributor" for the according vault
-      policy_id: 123123123  # The policy within the backup vault to use
+      policy_name: 123123123  # The policy within the backup vault to use
+      default_class: 60d  # The name of a class defined in classes
+      classes:  # List of classes the user can select from
+        60d:  # Name of the class
+          name: backup-policy-60d  # Name of the policy in the backup vault
+        90d:
+          name: backup-policy-90d
     parameters:  # Fields here define defaults for parameters also in the CRD and are used if the parameter is not set in the custom object supplied by the user
       network:
         public_access: false  # If set to true no network restrictions are placed on the storage account, if set to false access is only possible through vnet and firewall rules, optional
@@ -136,7 +142,7 @@ The azure backend also support a feature called `fake deletion` (via options `de
 
 For the azureblob backend there are several ways to protect the storage accounts from external access. One is on the network layer by disabling network access to the accounts from outside the cluster (via the `parameters.network.public_access` and `parameters.network.firewall_rules` and `network.vnets`) and the other is on the access layer by disallowing anonymous access (via `allow_anonymous_access`, this only gives the users the right to configure anonymous access, unless a user specifically does that only authenticated access is possible).
 
-The azureblob backend supports backups using [Azure Backup Vaults](https://learn.microsoft.com/en-us/azure/backup/backup-vault-overview). To enable Azure backup, first set the two fields `backup.vault_name` (the existing backup vault to use) and `backup.policy_id` (the existing policy to use). Now you can either enable backups by default using the field `parameters.backup.enabled` or configure backup per manifest using the field `backup.enabled`. Note: the configuration in the manifest overrides the global operator configuration.
+The azureblob backend supports backups using [Azure Backup Vaults](https://learn.microsoft.com/en-us/azure/backup/backup-vault-overview). To enable Azure backup, first set the field `backup.vault_name` (the existing backup vault to use) and either `backup.policy_name` (the existing policy to use) or `backup.default_class` with `backup.classes` (the existing policies to use). Now you can either enable backups by default using the field `parameters.backup.enabled` or configure backup per manifest using the field `backup.enabled`. Note: the configuration in the manifest overrides the global operator configuration.
 
 For the operator to interact with Azure it needs credentials. For local testing it can pick up the token from the azure cli but for real deployments it needs a dedicated service principal. Supply the credentials for the service principal using the environment variables `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` (if you deploy via the helm chart use the use `envSecret` value). Depending on the backend the operator requires the following azure permissions within the scope of the resource group it deploys to:
 

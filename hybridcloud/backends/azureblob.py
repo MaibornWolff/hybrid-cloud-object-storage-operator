@@ -87,8 +87,9 @@ class AzureBlobBackend:
         if backup_enabled:
             vault_name = _backend_config("backup.vault_name", default=None)
             policy_name = _backend_config("backup.policy_name", default=None)
+            default_class = _backend_config("backup.default_class", default=None)
 
-            if vault_name is None or policy_name is None:
+            if vault_name is None or (policy_name is None and default_class is None):
                 return (False, "Backup is requested for this bucket but has not been configured for this backend in the operator configuration")
         else:
             backup_lock = self._get_backup_lock(bucket_name)
@@ -225,7 +226,7 @@ class AzureBlobBackend:
 
         if backup_enabled:
             vault_name = _backend_config("backup.vault_name", fail_if_missing=True)
-            policy_name = _backend_config("backup.policy_name", fail_if_missing=True)
+            policy_name = _determine_backup_policy(spec.get("backup", {}))
 
             policy_id = f"/subscriptions/{self._subscription_id}/resourceGroups/{self._resource_group}/providers/Microsoft.DataProtection/backupVaults/{vault_name}/backupPolicies/{policy_name}"
 
@@ -509,3 +510,18 @@ def _determine_sku(size_spec):
         return Sku(name=classes[default_class]["name"])
     
     raise Exception(f"Default class '{default_class}' not found in classes.")
+
+def _determine_backup_policy(backup_spec):
+    classes = _backend_config("backup.classes")
+    backup_class = backup_spec.get("class")
+    default_class = _backend_config("backup.default_class")
+    policy_name = _backend_config("backup.policy_name")
+
+    if policy_name:
+        return policy_name
+    if backup_class and backup_class in classes:
+        return classes[backup_class]["name"]
+    if default_class in classes:
+        return classes[default_class]["name"]
+    
+    raise Exception(f"No valid backup policy provided")
