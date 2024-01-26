@@ -110,12 +110,14 @@ class AzureBlobBackend:
     def create_or_update_bucket(self, namespace, name, spec):
         bucket_name = _calc_name(namespace, name)
         sku = _determine_sku(spec.get("size", {}))
+        class_options = _class_options(spec.get("size", {}))
         public_access = field_from_spec(spec, "network.publicAccess", default=_backend_config("parameters.network.public_access", default=False))
         network_rules = self._map_network_rules(spec, public_access)
         tags = _calc_tags(namespace, name)
         sftp_enabled = field_from_spec(spec, "sftp.enabled", default=_backend_config("parameters.sftp.enabled",
                                                                                      default=False))
         backup_enabled = field_from_spec(spec, "backup.enabled", default=_backend_config("parameters.backup.enabled", default=False))
+        hns_enabled = sftp_enabled or class_options.get("hns_enabled", _backend_config("hns_enabled", default=False))
 
         try:
             storage_account = self._storage_client.storage_accounts.get_properties(self._resource_group, bucket_name)
@@ -137,8 +139,8 @@ class AzureBlobBackend:
                 allow_shared_key_access=True,
                 is_sftp_enabled=sftp_enabled,
                 # needed to enable sftp
-                is_hns_enabled=sftp_enabled,
-                is_local_user_enabled=sftp_enabled
+                is_hns_enabled=hns_enabled,
+                is_local_user_enabled=sftp_enabled,
             )
             self._storage_client.storage_accounts.begin_create(self._resource_group, bucket_name, parameters=parameters).result()
         else:
@@ -508,8 +510,24 @@ def _determine_sku(size_spec):
         return Sku(name=classes[size_class]["name"])
     if default_class in classes:
         return Sku(name=classes[default_class]["name"])
-    
+
     raise Exception(f"Default class '{default_class}' not found in classes.")
+
+
+def _class_options(size_spec):
+    size_class = size_spec.get("class")
+    default_class = _backend_config("default_class")
+    classes = _backend_config("classes", default=[])
+
+    if not size_class and not default_class:
+        return {}
+    if size_class and size_class in classes:
+        return classes[size_class]
+    if default_class in classes:
+        return classes[default_class]
+
+    raise Exception(f"Default class '{default_class}' not found in classes.")
+
 
 def _determine_backup_policy(backup_spec):
     classes = _backend_config("backup.classes")

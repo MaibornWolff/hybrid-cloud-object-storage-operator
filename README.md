@@ -94,11 +94,13 @@ backends:  # Configuration for the different backends. Required fields are only 
     tags: {}  # Extra tags to add to the storage account resource in Azure. variables {namespace} and {name} can be used, optional
     kind: StorageV2  # Kind to use for the storage accounts, optional
     access_tier: Hot  # Access tier for the storage accounts, can be Hot or Cold, optional
+    hns_enabled: false # Enable hierarchical namespace (only during bucket creation), optional
     sku:
       name: "Standard_LRS"  # Name of the SKU to use for the storage accounts. If this is set, the settings of classes are ignored
     classes:  # List of size classes the user can select from, optional
       lrs:  # Name of the class, required
         name: "Standard_LRS"  # Name of the SKU in Azure, required
+        hns_enabled: false # Enable hierarchical namespace (only during bucket creation), optional
       grs:
         name: "Standard_GRS"
     default_class: lrs  # Name of the class to use as default if the user-provided one is invalid or not available, required if classes should be usable
