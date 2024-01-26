@@ -1,5 +1,5 @@
 kubernetes==29.0.0
-kopf==1.36.2
+kopf==1.37.1
 azure-identity==1.15.0
 azure-mgmt-resource==23.0.1
 azure-mgmt-storage==21.1.0
