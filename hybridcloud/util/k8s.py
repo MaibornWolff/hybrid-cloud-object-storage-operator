@@ -73,7 +73,10 @@ def delete_secret(namespace, name):
 
 def patch_custom_object(resource: Resource, namespace: str,  name: str, body):
     api = kubernetes.client.CustomObjectsApi()
-    api.patch_namespaced_custom_object(resource.group, resource.version, namespace, resource.plural, name, body)
+    try:
+        return api.patch_namespaced_custom_object(resource.group, resource.version, namespace, resource.plural, name, body)
+    except:
+        return None
 
 
 def get_custom_object(resource: Resource, namespace: str, name: str):
