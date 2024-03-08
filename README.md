@@ -151,6 +151,25 @@ For the operator to interact with Azure it needs credentials. For local testing 
 * `Microsoft.Storage/*`
 * `Microsoft.Authorization/locks/*`, optional, if you want the operator to set delete locks
 
+### Using Azure Managed Identity
+
+Instead of using a service principal the operator can also be used with a managed identity using [Workload Identity](https://learn.microsoft.com/en-us/azure/aks/workload-identity-deploy-cluster). To do so:
+
+* Make sure your AKS cluster is configured with the workload identity feature.
+* Create the managed identity and assign it the needed permissions (e.g. Contributor role).
+* Establish the federated identity (as described in the linked guide), as subject use `system:serviceaccount:default:hybrid-cloud-object-storage-operator` (assuming you install the operator into the `default` namespace and do not change the name of the serviceaccount).
+* Configure the operator to use the workload identity. Add the following to the values:
+
+  ```yaml
+    podLabels:
+      azure.workload.identity/use: "true"
+    serviceAccount:
+      annotations:
+        azure.workload.identity/client-id: <client-id-of-managed-identity>
+  ```
+
+* You do not need to provide a secret with credentials as described for the service principal.
+
 ### Deployment
 
 The operator can be deployed via helm chart:
