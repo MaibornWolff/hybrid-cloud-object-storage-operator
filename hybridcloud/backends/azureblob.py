@@ -291,6 +291,7 @@ class AzureBlobBackend:
                     "endpoint": f"https://{bucket_name}.blob.core.windows.net",
                     "key": key.value,
                     "connection_string": f"DefaultEndpointsProtocol=https;AccountName={bucket_name};AccountKey={key.value};EndpointSuffix=core.windows.net",
+                    "account_name": bucket_name,
                 }
         raise Exception("Could not find keys in azure")
 
@@ -319,6 +320,7 @@ class AzureBlobBackend:
                     "endpoint": f"https://{bucket_name}.blob.core.windows.net",
                     "key": key.value,
                     "connection_string": f"DefaultEndpointsProtocol=https;AccountName={bucket_name};AccountKey={key.value};EndpointSuffix=core.windows.net",
+                    "account_name": bucket_name,
                 }
         raise Exception("Could not find keys in azure")
 
