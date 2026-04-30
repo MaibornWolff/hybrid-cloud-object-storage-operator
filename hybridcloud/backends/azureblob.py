@@ -4,7 +4,7 @@ from azure.mgmt.storage.models import StorageAccountCreateParameters, StorageAcc
     BlobServiceProperties, \
     CorsRules, CorsRule, NetworkRuleSet, IPRule, VirtualNetworkRule, BlobContainer, \
     StorageAccountCheckNameAvailabilityParameters, StorageAccountRegenerateKeyParameters, \
-    DeleteRetentionPolicy, RestorePolicyProperties, ChangeFeed, LocalUser, PermissionScope, SshPublicKey, \
+    DeleteRetentionPolicy, ChangeFeed, LocalUser, PermissionScope, SshPublicKey, \
     ManagementPolicy, ManagementPolicySchema, ManagementPolicyRule, RuleType, ManagementPolicyDefinition, \
     ManagementPolicyAction, ManagementPolicyFilter, ManagementPolicyBaseBlob, DateAfterModification
 from azure.mgmt.resource.locks.models import ManagementLockObject
