@@ -1,8 +1,8 @@
-kubernetes==36.0.3
+kubernetes==37.0.1
 kopf==1.44.6
-azure-identity==1.25.3
+azure-identity==1.26.0
 azure-mgmt-resource==26.0.0
-azure-mgmt-resource-locks==1.0.0b1
-azure-mgmt-storage==25.1.0
+azure-mgmt-resource-locks==1.0.0
+azure-mgmt-storage==25.2.0
 azure-mgmt-dataprotection==2.2.0
 pyyaml==6.0.3
